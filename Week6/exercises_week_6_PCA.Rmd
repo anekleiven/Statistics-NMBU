@@ -1,0 +1,281 @@
+---
+title: 'Exercises week 6: PCA'
+author: "Ane Kleiven"
+date: "2025-03-15"
+output: 
+   html_document:  
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE) 
+```
+
+# Load R_packages 
+
+```{r}
+library(BIAS.data)
+library(tidyverse)
+library(GGally) 
+library(pls) 
+library(ggplot2)
+```
+
+# 1 Track and Field data 
+
+## Data wrangling 
+
+```{r}
+# load the data 
+trackfield <- BIAS.data::trackfieldrecords
+trackfield_women <- trackfield$runWomen
+trackfield_men <- trackfield$runMen 
+```
+
+```{r}
+head(trackfield_men)
+```
+```{r}
+head(trackfield_women)
+```
+
+```{r}
+# change the column names of the womens data 
+colnames(trackfield_women) <- c('W100', 'W200', 'W400', 'W800', 'W1500', 'W3000', 'W42K', 'Nation') 
+trackfield_women
+```
+
+## 1.1 Join the data 
+
+```{r}
+trackfield_tbl <- full_join(trackfield_men, trackfield_women, by = 'Nation') |> 
+  select(Nation, starts_with('W'), starts_with('M'))
+```
+
+# 1.2 Inspect data 
+
+Inspect the data by making a correlation plot using `ggcorr` from the `GGally` package. 
+
+```{r}
+ggcorr(trackfield_tbl, label = TRUE, color = 'grey50', hjust = 0.75, size = 3, palette = 'PuRd') + 
+  scale_fill_gradient2(low = "white", mid = "lightpink", high = "purple", midpoint = 0.5, limits = c(0, 1)) +
+  ggtitle('Correlation plot of track and field data') 
+```
+We can see that most race distances are highly correlated, and all are positively correlated. 
+This means that if a country has good or bad results in one variable, they are likely to have similar results in the other variables. We expect a PCA should show most information captured with 1 or at least very few components. 
+
+## 1.3 PCA 
+
+Run PCA using the `prcomp()` function and set `scale = FALSE`. 
+
+```{r}
+PCA1 <- prcomp(trackfield_tbl[,-1], scale = FALSE)
+summary(PCA1) 
+```
+
+To capture 99% of the variance, two principal components are needed. 
+
+### Loading plot of the two first components 
+
+```{r}
+PCA1$rotation[,1:2]
+```
+In the loadings for PC1, we can see that the W42K have a loading (weight) of 0.97. This means that the womens marathon time is the most important variable for PC1, a large contribution to the variance.  
+The mens marathon have the second largest loading for PC1, with a weight of 0.23. 
+
+Variation in the data is now mainly due to the varying distances. Large values for large distances, and small values for short distances. PC1 picks up this variation, by giving large loadings to the marathon distance for both sexes. 
+PC1 is more or less identical to the marathon variables.  
+
+This information is not very surprising, as the marathon is the longest distance and will take the longest time to complete. The data should be scaled to get rid of the most obvious source of variation. 
+
+## 1.4 Standardizing the data 
+
+```{r}
+PCA_scaled <- prcomp(trackfield_tbl[,-1], scale = TRUE)
+summary(PCA_scaled)
+```
+Using scaled data, we can see that the first two components now explain 87% of the variance in the data set. 
+We need 11 components to explain 99% of the variance. 
+
+```{r}
+PCA_scaled$rotation[,1:3]
+```
+In the scaled PCA, all distances have a similar loading for PC1. This means that the variation in the data is now more evenly distributed among the variables. 
+We may think of this as a general goodness in the nations records, regardless of distance. 
+
+In PC2, the effect of distance is more clear. The longer distances have a negative loading, while the shorter distances have a positive loading. This means that the variation in PC2 is due to the difference in time between the short and long distances. 
+
+PC3 represents gender differences. Womens distances have negative loadings, while mens distances have positive loadings. 
+
+## 1.5 Scores and loadings 
+
+### PC1-PC2 
+
+```{r}
+# make a table with the scores
+score.tbl <- as.data.frame(PCA_scaled$x) |> 
+  bind_cols(trackfield_tbl) 
+
+# find the relative variance explained by each component
+relative_evar <- round(PCA_scaled$sdev^2 / sum(PCA_scaled$sdev^2), 2) 
+
+# plot a score plot 
+ggplot() + 
+  geom_text(data = score.tbl, mapping = aes(x = PC1, y = PC2, label = Nation)) + 
+  labs(x = str_c('PC1 (', relative_evar[1], ')'), 
+       y = str_c('PC2 (', relative_evar[2], ')'))
+```
+
+Consider first the score-plot with PC1-PC2 and where the countries are located here. In such plots we typically look for either clusters/groupings in the data, or for gradients, i.e. the objects (countries) are ‘ordered’ in some direction. For those interested in track-and-fields will notice countries with small (negative) values along PC1 are those who tend to dominate these sports, while on the other end we find countries rarely seen on the Olympic podium. Thus, here PC1 simply reflects the ‘goodness’ of the nations in terms of their records. A larger PC1 loading means a larger (=poorer) record.
+
+```{r}
+# make a table with the loadings 
+loading.tbl <- as_tibble(PCA_scaled$rotation, rownames = 'Variables') 
+
+origin_tbl <- as_tibble(PCA_scaled$rotation - PCA_scaled$rotation, rownames = 'Variables') |> 
+  bind_rows(loading.tbl)
+
+# plot a loading plot 
+ggplot(loading.tbl, aes(x = PC1, y = PC2)) + 
+  geom_point() + 
+  geom_text(aes(label = Variables), nudgey = 0.05) + 
+  geom_line(aes(group = Variables), data = origin_tbl, color = 'coral') + 
+  labs(title = 'Loading plot of track and field data')
+  
+```
+
+Considering the PC1-PC2 loading-plot, i.e. the variables, we see the clear gradient along PC2 reflecting the distances. Nations are distributed along this axis depending if their athletes tend to be good in short or long distances. 
+
+### PC1-PC3 
+
+```{r}
+# plot a score plot 
+ggplot() + 
+  geom_text(data = score.tbl, mapping = aes(x = PC1, y = PC3, label = Nation)) + 
+  labs(x = str_c('PC1 (', relative_evar[1], ')'), 
+       y = str_c('PC3 (', relative_evar[3], ')'))
+```
+
+```{r}
+# plot a loading plot 
+ggplot(loading.tbl, aes(x = PC1, y = PC3)) + 
+  geom_point() + 
+  geom_text(aes(label = Variables), nudgey = 0.05) + 
+  geom_line(aes(group = Variables), data = origin_tbl, color = 'coral') + 
+  labs(title = 'Loading plot of track and field data')
+```
+
+In the loading plot for PC1-PC3, we see that the womens distances have negative loadings, while the mens distances have positive loadings. This means that the variation in PC3 is due to the difference in time between the sexes. 
+
+# 2 Sediments data 
+
+```{r}
+sediments.tbl <- BIAS.data::sediments
+```
+
+## 2.1 PCA 
+
+```{r}
+PCA2 <- prcomp(sediments[,-1], scale = FALSE)
+summary(PCA2)
+```
+95% of the total variation in the data is explained by the first component. 
+
+## 2.2 Scoreplot 
+
+```{r}
+score_tbl2 <- as.data.frame(PCA2$x) |> 
+  bind_cols(sediments)
+
+relative_evar2 <- round(PCA2$sdev^2 / sum(PCA2$sdev^2), 2)
+
+ggplot() + 
+  geom_point(data = score_tbl2, aes(x = PC1, y = PC2, color = Environment), size = 3) + 
+  labs(x = str_c('PC1 (', relative_evar2[1], ')'), 
+       y = str_c('PC2 (', relative_evar2[2], ')'))
+```
+
+We can see that the different environments are clustered together, indicating that the variation in the data is due to the environment. There is a difference between natural and polluted environments. 
+
+The variation of the PC1 axis explains almost everything (95%), and the variation in the y-axis is probably just random noise. A plot like this should be wide but short, with a long x-axis and a short y-axis. This is to avoid the viewer to think that the y-axis is important (interpret along the y-axis). 
+
+## 2.3 Loading plot 
+
+```{r}
+loading.tbl.2 <- as_tibble(PCA2$rotation, rownames = 'Variables') 
+
+origin.tbl.2 <- as_tibble(PCA2$rotation - PCA2$rotation, rownames = 'Variables') |> 
+  bind_rows(loading.tbl.2)
+
+ggplot(loading.tbl.2, aes(x = PC1, y = PC2)) + 
+  geom_point() + 
+  geom_text(aes(label = Variables), nudgey = 0.05) + 
+  geom_line(aes(group = Variables), data = origin.tbl.2, color = 'coral') + 
+  labs(title = 'Loading plot of sediments data')
+```
+
+The loading-plot shows how strongly each variable influences a PC. The angles between the vectors tell us how variables correlate with one another (described above) if two variables form a small angle, the two variables are correlated. It is hard to tell from our plot as they are very clustered. But we can see Lutibacter and Oceanispirochaeta are positively correlated, while Lutibacter is negatively correlated to Viruses.
+
+The loading-plot can tell us which variables are mostly correlated with PC1 and PC2. We saw from the score-plot that PC1 separate polluted from natural sites (see score plot). In the loading-plot we see that Sulfurovum is the genus that has the (by far!) largest absolute loading along PC1. A high abundance of this is associated with polluted sites, since it has a negative loading along PC1, and polluted sites also had a negative score along PC1. Thus, if we observe a very high abundance of this taxon compared to the rest, we predict it is a polluted environment. 
+
+## 2.4 Standardizing 
+
+```{r}
+PCA2_scaled <- prcomp(sediments[,-1], scale = TRUE)
+summary(PCA2_scaled)
+```
+Using scaled data, PC1 now only explains 69% of the variance. 
+In order to explain 99% of the variance, we need 10 components. 
+
+### Score plot standardized data
+
+```{r}
+score_tbl2_sc <- as.data.frame(PCA2_scaled$x) |> 
+  bind_cols(sediments)
+
+relative_evar2_sc <- round(PCA2_scaled$sdev^2 / sum(PCA2_scaled$sdev^2), 2)
+
+ggplot() + 
+  geom_point(data = score_tbl2_sc, aes(x = PC1, y = PC2, color = Environment), size = 3) + 
+  labs(x = str_c('PC1 (', relative_evar2_sc[1], ')'), 
+       y = str_c('PC2 (', relative_evar2_sc[2], ')'))
+```
+When scaled the major difference along PC1, is still between polluted and natural sites, but not as clear as before.
+
+### Loading plot standardized data 
+
+```{r}
+loading.tbl.2_sc <- as_tibble(PCA2_scaled$rotation, rownames = 'Variables') 
+
+origin.tbl.2_sc <- as_tibble(PCA2_scaled$rotation - PCA2_scaled$rotation, rownames = 'Variables') |> 
+  bind_rows(loading.tbl.2_sc)
+
+ggplot(loading.tbl.2_sc, aes(x = PC1, y = PC2)) + 
+  geom_point() + 
+  geom_text(aes(label = Variables), nudgey = 0.05) + 
+  geom_line(aes(group = Variables), data = origin.tbl.2_sc, color = 'coral') + 
+  labs(title = 'Loading plot of sediments data')
+```
+
+
+Well, a loading plot with this many standardized variables quickly becomes a mess! Since all variables now have standard deviation 1.0, they tend to be on a circle/ellipsoide around the origin. In such cases a loading-plot is of little help to explore our data!
+
+In fact, for data like this it makes no sense to standardize. The point is that all variables are measured on the same scale (read-counts), and the information lies mostly in that some organisms are more or less abundant, i.e. have larger or smaller values. By standardizing we eliminate much of this information! It is almost remarkable that the score-plot still separates polluted from natural environments.
+
+
+
+
+
+
+
+
+
+
+
+
+

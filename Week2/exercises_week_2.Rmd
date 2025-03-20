@@ -1,0 +1,550 @@
+---
+title: "Regression analysis - part I"
+author: "Ane Kleiven"
+date: "2025-02-12"
+output: 
+  html_document:
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## 1 Least Squares App 
+
+With N = 10 data points the least square model differs a lot from the true model (the green line). This is because the true model represents the whole population, while the least square model is based on a sample of the population. The least squares line provides the best estimate of the true relationship - given the available data (the sample of 10 observations). 
+
+When increasing N to 100, the least squared line is much closer to the green line (true model). This is because we have more observations, giving a better picture of the whole population. 
+
+## 2 The AUDI data - Simple linear regression 
+
+### 2.1 Linear model assumptions
+
+```{r}
+library(BIAS.data)
+data(Audi)
+lm.obj <- lm(Price ~ Age, data = Audi)
+```
+
+The model equation: 
+
+Yi = β0 + β1xi + εi 
+
+Where: 
+
+- i = 1,2,3,...,30 
+- Yi is the `Price` of the car and is the response variable 
+- Xi is the `Age` of the car and is the predictor variable 
+- εi is the error term for car number i, i.e. the difference between observed and expected price for car number i. 
+
+Model assumptions: 
+
+- There is a linear relationship between x and y 
+- The error terms are normally distributed 
+- The error terms have a constant variance σ2 for all cars
+- The error terms are independent 
+
+
+### 2.2 Fit model and test 
+
+Is there a significant effect of `Age` on `Price`? 
+
+The hypotheses: 
+* H0: β1 = 0 
+* H1: β1 ≠ 0 
+
+Significance level: 5% 
+
+
+```{r}
+summary(lm.obj)
+```
+The p-value for 'Age' is 4.97e-10. There is a significant effect (negative slope) of `Age` on the `Price` of an Audi car. 
+We reject the null hypothesis at 5% significance level. 
+
+This is only a valid statement if the model assumptions are met. 
+
+
+### 2.3 Diagnostics 
+
+**Fitted Line Plot** 
+
+Below the Fitted Line Plot is pictured. The model line looks quite correct, and the relationship seems to be linear. 
+
+```{r}
+# The fitted line plot 
+
+plot(Price~Age, data = Audi, main = "The Fitted Line Plot", 
+     xlab = "Car Age (Years)", ylab = "Price (1000 NOK)", 
+      pch = 16, col = "black", cex = 1.2)
+abline(lm.obj, lwd = 3, col = "red")
+```
+
+**Further diagnostics** 
+
+```{r}
+# diagnostic plots 
+par(mfrow = c(1, 2))  # Arrange plots side by side
+plot(lm.obj, which = c(1, 2))
+
+# plot(lm.obj) is a special function in R to generate diagnostic plots for linear models 
+```
+Residuals vs fitted plot: 
+
+A plot to check for non-linearity in the relation and constant variance. 
+Observation 21 sticks out, but otherwise the the residual plot looks fine with fairly constant spread from left to right. 
+
+Q-Q Residuals vs standardized residuals: 
+
+A plot to check whether the residuals are normally distributed. They are normally distributed if they are located on the diagonal line. This looks fine, except for number 21. No need to worry about normality. 
+
+**Studentized residuals** 
+
+To see if some data cases has extreme influence: 
+
+```{r}
+stud.resid <- rstudent(lm.obj)
+summary(stud.resid)
+```
+The largest positive residual is >3SD. This is an extreme observation compared to the rest, and may not belong to this data set. From the Q-Q plot above, we can see that this observation is number 21. 
+
+The leverages ( = utnyttere på norsk) 
+
+```{r}
+influences <- influence.measures(lm.obj)
+summary(influences)
+```
+
+This also lists observation 21 as an extreme. 
+
+We need to refit the model without case 21, and run summary() on the new model. 
+
+**Refit the model** 
+
+```{r}
+lm_21.obj <- lm(Price ~ Age, data = Audi, subset = -21)
+summary(lm_21.obj)
+```
+The effect of 'Age' is still negative and significant, but a bit less steep than before. 
+
+**A new fitted line plot** 
+
+## 3 Data Set `Birth`
+
+```{r}
+data(birth)
+```
+
+### 3.1 Effect of mothers weight 
+
+```{r}
+lm.birth <- lm(BWT ~ LWT, data = birth)
+```
+
+Is there significant effect of mothers weight (`LWT`) on birth weight (`BWT`)? 
+
+**The hypotheses:** 
+H0: β1 = 0 
+H1: β1 ≠ 0 
+
+Significance level: 5% 
+
+```{r}
+summary(lm.birth)
+```
+There is a significant effect (positive slope) of mothers weight on birth weight with 5% significance level. 
+With 1% significance level the effect is not significant. 
+
+The R squared is close to zero, meaning that the model does not fit the data very well. R squared should be close to 1. 
+
+The slope, B1, is estimated to 4.429. This means that an increase in mothers weight of 1 pound gives an average increase in birth weight of 4.429 grams. 
+Thus, even if the effect is significant (at 5%), the effect is not very big, i.e. the slope is not very steep, and the R2 remains small. The total variation in birth weight must be due to many other predictors than the mothers weight.
+
+
+### 3.2 Scatter-plot 
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+
+lm.birth$model|> mutate(Fitted = lm.birth$fitted.values) |> 
+  ggplot() + 
+  geom_point(data = birth, mapping = aes(x = LWT, y = BWT), size = 3, alpha = 0.5) + 
+  labs(x = "Mothers weight (lb)", y = "Child's Weight (grams)") + 
+  geom_line(aes(x = LWT, y = Fitted), color = "pink2", linewidth = 2) 
+```
+
+R squared = 1 - SSE / SST 
+
+SSE is the sum of squared distance from each point to the pink regression line
+SST is the sum of squared distance from each point to a flat line on the y-axis. 
+
+Here the pink line has very little slope. This means that the imaginary line will be almost equal to the pink line, and SSE almost equal to SST. Therefore R squared becomes very small (1 - ~1 = ~0). 
+The get a bigger R squared the slope of the regression line needs to be steeper. 
+
+### 3.3 Confidence intervals 
+
+```{r}
+confint(lm.birth, level = 0.95) 
+```
+We are 95% certain that the true Bj (the slope) is between 1.05 and 7.81. 
+0 is not included in the interval, as we expect since we rejected the null hypothesis at 5% significance level. 
+
+```{r}
+confint(lm.birth, level = 0.99)
+```
+We are 99% certain tha the true Bj (the slope) is between -0.03 and 8.89. The value 0 is included in the interval, as expected, since we could not reject the null hypothesis at 5% significance level. 
+
+A slope with value 0 means that we have no effect. 
+
+
+### 3.4 Subsets 
+
+```{r}
+sub.size <- 50 
+birth.sub <- slice(birth, sample(1:nrow(birth), sub.size))
+```
+
+Fitted model using the birth subset: 
+
+```{r}
+lm.birth.sub <- lm(BWT ~ LWT, data = birth.sub) 
+```
+
+Results table: 
+
+```{r}
+res.tbl <- lm.birth.sub$model |> 
+  mutate(Fitted = lm.birth.sub$fitted.values, 
+         Slope = lm.birth.sub$coefficients[2]) |> 
+  select(BWT, LWT, Fitted, Slope)
+
+```
+Repeat 1000 times: 
+
+```{r}
+N.sub <- 1000 
+
+sub.size <- 50 
+
+result.tbl <- NULL 
+
+for (i in 1:N.sub) { 
+  
+  birth.sub <- slice(birth, sample(1:nrow(birth), sub.size))
+  lm.birth.sub <- lm(BWT ~ LWT, data = birth.sub)
+  res.tbl <- birth.sub |> 
+    mutate(Fitted = lm.birth.sub$fitted.values, 
+           Slope = lm.birth.sub$coefficients[2], 
+           Subset = i)
+  result.tbl <- bind_rows(result.tbl, res.tbl) 
+  
+}
+```
+Histogram of the estimated slopes:
+
+```{r}
+ggplot(result.tbl) +
+  geom_histogram(aes(x = Slope), bins = 50)
+```
+The histogram of the slopes show that in some cases the estimated slope is negative, even if the majority are positive. The p-value is not computed directly from this distribution, see the lectures. This distribution is closer linked to the confidence interval for the slope. Since we have 1000 estimates here, if you discard the 25 most extreme estimates in each side of the histogram, the remaining width of the histogram is a rough estimate for the 95% confidence interval!
+
+The histogram of the slopes actually shows the same slope value 50 times, since we stored the slope in each of the 50 rows in the res.tbl
+
+Make a histogram using only 1 slope value: 
+
+```{r}
+result.tbl %>% 
+  group_by(Subset) %>% 
+  slice(1) %>% 
+  ggplot() +
+  geom_histogram(aes(x = Slope), bins = 50)
+```
+We get the same shape of the histogram, only smaller values on the y-axis. 
+
+A Scatter-plot with all the regression lines: 
+
+```{r}
+ggplot(result.tbl) +
+  geom_point(aes(x = LWT, y = BWT), alpha = 0.6) +
+  geom_line(aes(x = LWT, y = Fitted, group = Subset), linewidth = 1, color = "red", alpha = 0.1)
+```
+The figure showing the “cloud” of regression lines, one for each of the 1000 subsets, is an image you should always remember when you see a single regression line in a plot. The single line is always a random sample of many such lines! The spread between the lines depend on
+
+-How many data cases we have
+-How well the model fits the data
+-How presicely the data have been collected
+
+Simulation performed with subsets of 25 samples: 
+
+```{r}
+N.sub <- 1000 
+
+sub.size.small <- 25
+
+result.tbl2 <- NULL 
+
+for (i in 1:N.sub) { 
+  
+  birth.sub2 <- slice(birth, sample(1:nrow(birth), sub.size.small))
+  lm.birth.sub2 <- lm(BWT ~ LWT, data = birth.sub2)
+  res.tbl2 <- birth.sub2 |> 
+    mutate(Fitted = lm.birth.sub2$fitted.values, 
+           Slope = lm.birth.sub2$coefficients[2], 
+           Subset = i)
+  result.tbl2 <- bind_rows(result.tbl2, res.tbl2) 
+  
+}
+
+head(result.tbl2)
+```
+```{r}
+ggplot(result.tbl2) +
+  geom_histogram(aes(x = Slope), bins = 25)
+```
+When decreasing the subsets to 25 samples, the confidence interval becomes less significant. We can see that more values tend to be negative and the histogram is wider than the one using 50 samples per subset. 
+```{r}
+ggplot(result.tbl2) +
+  geom_point(aes(x = LWT, y = BWT), alpha = 0.6) +
+  geom_line(aes(x = LWT, y = Fitted, group = Subset), linewidth = 1, color = "red", alpha = 0.1)
+```
+We can see that the regression lines are more spread with fewer observations. The variability increases. 
+
+## 4 Advertising data 
+
+### 4.1 Summary statistics 
+
+```{r}
+load("data/Advertising.RData")
+summary(Advertising[, c("TV", "Radio", "Newspaper", "Sales")])
+```
+TV has the largest advertising budget (147 thousand dollars)
+
+```{r}
+sd_tv <- sd(Advertising$TV)
+sd_radio <- sd(Advertising$Radio)
+sd_newspaper <- sd(Advertising$Newspaper)
+sd_sales <- sd(Advertising$Sales)
+```
+
+TV also has the largest variation in advertising costs (sd), with 85.85 thousand dollars.  
+
+### 4.2 Scatter-plots 
+
+```{r}
+library(car)
+
+scatterplotMatrix(Advertising)
+
+```
+Sales and Newspaper: the slope is quite small, indicating that the amounts of advertisements in newspapers might not affect sales. 
+
+Sales and Radio: the slope is steep (positive), indicating a strong association between the amount of radio advertisements and sales 
+
+Sales and TV: the slope is steep (positive), indicating a strong association between the amounts of advertisements in TV and sales. The effect seems to be strongest for the low advertising budgets. Beyond a certain budget level the effects on sales flattens out. 
+
+
+### 4.3 Model and assumptions 
+
+The model equation: 
+
+Yi = β0 + β1xi + εi 
+
+Where 
+
+i = 1,2,3,...,200 is the market 
+Yi is the amount of `Sales` for a certain market (response variable)
+x is the predictor variable `Radio`. 
+β0 is the constant term (the intercept) 
+β1 is the regression coeffisient (slope) 
+
+εi is the error term 
+
+
+Model assumptions: 
+- We assume that there is a linear relationship between the response variable and the predictor 
+- The error term is normally distributed with a mean value of zero and a standard deviation of sigma squared. 
+- All error terms are assumed to be independent of each other  
+
+```{r}
+lm.advert <- lm(Sales ~ Radio, data = Advertising) 
+summary(lm.advert)
+```
+β0 (Intercept) estimated = 9.31: Is the expected sales if no radio advertisement is made. 
+β1 (Slope) estimated = 0.20: When radio advertisements increase by one unit, the sales will increase 0.20 thousand dollars.  
+Sigma estimated = s = 4.275 is the standard deviation of sales for any given and fixed level of radio advertisement 
+
+R squared = 0.332. 33,2% of the variation is explained by our model. This is quite low, telling us that a lot of the variation in the data are explained by other variables than the ones used in our model. 
+
+
+### 4.4 Fitted plot line 
+
+```{r}
+plot(Sales~Radio, data = Advertising, 
+     main = "Fitted Line Plot Advertising Radio", 
+     xlab = "Sales (thousand dollars)", 
+     ylab = "Budget of Radio advertisments", 
+     pch = 20, 
+     col = "darkgrey", 
+     cex = 2)
+     
+abline(lm.advert, lvd = 2, col = "red")
+
+
+```
+From the plot there appears to be a linear association between the variables, but the assumption of constant variance for the error term independent of the level of the x-variable is questionable. The spread around the line seems to increase with increasing radio advertisement budget. Furthermore, the spread beneath the line seems to be larger than above the line which also makes the normal distribution of the errors questionable.
+
+### 4.5 Model diagnostics 
+
+```{r}
+oldpar <- par(oma=c(0,0,3,0), mfrow=c(2,2))
+plot(lm.advert, which = c(1,2,4,5), add.smooth=FALSE)
+
+```
+Yes, the deviations from the model assumptions are even more clear here. From the top-left plot of fitted-values versus residuals, the increasing variance of the residuals as y^
+ increases is clearly visible. Also from the normality Q-Q plot (top-right) we can see the slight deviation from the normal distribution with a heavier tail towards negative residuals (the observed redisuals are smaller than what is expected according to a normal distribution).
+ 
+```{r}
+lm.advert.tv <- lm(Sales~TV, data = Advertising)
+summary(lm.advert.tv)
+```
+Estimated beta zero: 7.03. If there is no TV-advertisement the Sales will be 7.03
+Estimated beta one: 0.05. When TV advertisements increase by one unit, the sales will increase 0.05 thousand dollars.  
+Sigma estimated: 3.259. This is the standard deviation of sales for any level of tv advertisement budget. 
+
+R squared: 0.6119. 61,2% of the variation is explained by the model. 
+
+
+```{r}
+plot(Sales~TV, data = Advertising, 
+     main = "Fitted Line Plot Advertising TV", 
+     xlab = "Sales (thousand dollars)", 
+     ylab = "Budget of TV advertisements", 
+     pch = 20, 
+     col = "darkgrey", 
+     cex = 2)
+     
+abline(lm.advert.tv, lvd = 2, col = "red")
+
+```
+We can see some of the same trends here as in the radio case; the variation seems to increase when the sales increase. 
+
+```{r}
+oldpar <- par(oma=c(0,0,3,0), mfrow=c(2,2))
+plot(lm.advert.tv, which = c(1,2,4,5), add.smooth=FALSE)
+```
+The non-liearity of the association between TV-budget and sales is apparent from the banana shaped residual plot. Also the increasing variance is clear. These are clear violations of the model assumptions, even though the normality seems better here.
+
+
+### 4.7 Transformation of variables 
+
+```{r}
+log_advertising <- Advertising |> 
+  mutate(log_sales = log(Sales), log_TV = log(TV))
+head(log_advertising)
+```
+
+New model with the log values: 
+
+```{r}
+lm.log.model <- lm(log_sales~log_TV, data = log_advertising) 
+summary(lm.log.model)
+```
+```{r}
+oldpar <- par(oma=c(0,0,3,0), mfrow=c(1,2))
+plot(lm.log.model, which = c(1,2), add.smooth=FALSE)
+```
+The model fit improves a bit. The R2 increases. The residual plot indicates that linearity has improved and that variance is stabilized. However, the normality is now questionable. The model is still better, because tests are more vulnerable to deviations from assumptions of linearity and constant variance than that of normality.
+
+
+### 4.8 Hypothesis testing on the log model 
+
+H0: B1 = 0, H1: B1 ≠ 0 
+H0: B0 = 0, H1: B0 ≠ 0 
+
+5 % significance level 
+
+What can we conclude about the effect of logTV on logSales? 
+
+```{r}
+summary(lm.log.model)
+```
+The estimate of both B0 and B1 are both significant at 5% significance level. 
+We can reject both hypotheses. 
+This conclusion is made looking at the p-values. 
+
+We can come to the same conclusion by constructing the test observator: 
+
+
+T = (β1^ − 0) / SE(β1^) = 0.355 / 0.01487 = 23.87
+
+Reject the null hypothesis if the test observator is far from 0, more specifically if: 
+
+
+|T| > t alpha/2, n-p 
+
+t alpha/2, n-p is the upper alpha/2 percentile of the t-distribution with n-p degress of freedom. 
+
+We have 200 observations. n - p = 200 - 2 = 198. The closest df is 100 and 1000. We use 1000, since this is the most concervative conclusion. 
+
+Looking in a table: t 0.025, 1000 df = 1.962 
+
+T >>> t 0.025, 1000 df. We reject the null hypothesis at 5% significance level. 
+
+
+The same procedure can be done for the other estimator. 
+
+
+### 4.9 Confidence intervals 
+
+
+```{r}
+confint(lm.log.model, level = 0.95)
+```
+We are 95% certain that the true intercept is between 0.765 and 1.045 
+
+We are 95% certain that the true slope is between 0.326 and 0.384 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

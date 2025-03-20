@@ -1,0 +1,110 @@
+---
+title: "Exercises week 1"
+author: "Ane Kleiven"
+date: "2025-02-08"
+output: 
+  html_document:
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_folding: hide
+    code_download: true
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+### Installing and loading packages 
+
+```{r}
+library(car)
+library(devtools)
+install_github("thoree/BIAS.data")
+```
+
+```{r}
+library(BIAS.data)
+data(bodydata)
+head(bodydata)
+```
+
+### Exploring data 
+
+```{r}
+data("Audi")
+head(Audi)
+```
+
+```{r}
+summary(Audi)
+```
+
+```{r}
+str(Audi)
+```
+
+```{r}
+names(Audi)
+colnames(Audi)
+dim(Audi)
+```
+
+```{r}
+min(Audi$Price)
+max(Audi$Price)
+quantile(Audi$Price)
+range(Audi$Price)
+mean(Audi$Price)
+median(Audi$Price)
+```
+
+### Plotting data 
+
+```{r}
+library(ggplot2)
+ggplot(Audi, mapping = aes(x = Km, y = Price, colour = Fuel)) + geom_point(size = 5) + labs(title = "Price vs. kilometer in Audi cars", y = "Price (1000 NOK)", color = "Fuel type")
+```
+
+```{r}
+ggplot() + geom_boxplot(data = Audi, mapping = aes(x = Transition, y = Price)) + labs(title = "Price vs Transition", x = "Transition (manual versus automatic)", y = "Price (1000 NOK)")
+```
+
+### Data set 'Birth' 
+
+```{r}
+data("birth")
+head(birth)
+```
+```{r}
+summary(birth)
+```
+```{r}
+library(tidyverse)
+
+#  What is the average birth weight of children from non-smoking and smoking mothers?
+
+birth |> group_by(SMK) |> summarise(mean_weight = mean(BWT), st_dev = sd(BWT))
+
+```
+```{r}
+filtered_birth <- birth |> filter(LWT < 200)
+
+ggplot(data = filtered_birth, aes(x = LWT, y = BWT, colour = SMK)) + geom_point(size = 3) + 
+  geom_smooth(method = "lm") + 
+  labs(title = "Birth weight vs mothers weight at last menstrual period", x = "Mothers weight (pounds)", y = "Birth weight (grams)")
+```
+The plot above shows the mothers weight in relation to birth weight. The plot is colored by the mothers smoking habits. We can see from the trend lines that the smoking mothers tend to have smaller babies, compared to the non-smoking mothers. 
+
+```{r}
+smoking_low_weight <- birth |> 
+  group_by(SMK, LOW) |> 
+  summarise(count = n())
+
+ggplot() + 
+  geom_col(data = smoking_low_weight, mapping = aes(x = SMK, y = count, fill = LOW), position = "fill") + 
+  labs(title = "Birth weight in relation to mothers smoking habits", y = "count", x = "Smoking or not smoking")
+```
+From the plot above we can see that the proportion of babies with low birth weigth is bigger among the smoking mothers. 

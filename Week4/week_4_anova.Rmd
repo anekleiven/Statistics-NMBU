@@ -1,0 +1,323 @@
+---
+title: "ANOVA part I"
+author: "Ane Kleiven"
+date: "2025-02-26"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# 1 Ex-1: Chlorine levels in cities 
+
+```{r}
+library(BIAS.data)
+library(car)
+
+city.tbl <- BIAS.data::city
+
+# stack the data and create a response column y 
+city.stacked <- stack(city.tbl) 
+# change column names 
+colnames(city.stacked) <- c("y", "city")
+```
+
+**Assume an ANOVA-model with chlorine as response and city as a factor. What assumptions do you make?**
+
+There is a linear relationship between the response variable and the factor levels. 
+The residuals are independent and normally distributed with constant variance. 
+mu i is the expected chlorine level in city i. 
+
+The model: yij = mu i + eij where eij ~ N(0, sigma^2)  
+
+**Make a box-plot of the data using the Boxplot-function in the ‘car’-package Describe the variabilities between cities and within cities.**
+
+```{r}
+car::Boxplot(city.stacked$y ~ city.stacked$city, xlab = 'Levels', ylab = 'Chlorine level', main = 'Boxplot of chlorine levels in cities')
+```
+We can see that the chlorines levels varies between the three cities. 
+In city 1, the mean chlorine level is very low, with a lower variance than seen in city 2 and city 3. 
+City 2 and city 3 looks more similar, with a higher mean chlorine level than city 1. The variance in city 3 is higher than in city 2.
+
+**Fit the model (using sum to zero parametrization) and perform a residual analysis. Comment on the model fit.**
+
+```{r}
+options(contrasts = c("contr.sum", "contr.poly"))
+model.city <- lm(formula = y~city, data = city.stacked)
+summary(model.city, cor = FALSE)
+```
+```{r}
+car::Anova(model.city)
+```
+```{r}
+anova(model.city)
+```
+#### Redidual analysis 
+
+```{r}
+par(oma=c(0,0,3,0), mfrow=c(2,2))
+plot(model.city, which = c(1,2,4,5), add.smooth=TRUE)
+```
+The residual analysis reveals a two problems: 
+1. Non constant variance - also observed in the boxplots. 
+2. A skewed and non normal distribution of the residuals, with a heavy tail to the right.  
+
+The R squared is quite small, only 0.16, so there is a lot of unexplained variance in the response variable. 
+The hypothesis test of effect of the group variable city appears to be highlt significant, but we should be careful concluding until we have tried to improve the fit of the model. 
+
+**Make a log-transformation of y to create the variable ylog**
+
+```{r}
+library(tidyverse)
+
+logy <- log(city.stacked$y)
+city.stacked <- mutate(city.stacked, ylog = logy)
+```
+
+**Fit a new model with log y as response and check the model fit again.**
+
+```{r}
+options(contrasts = c('contr.sum', 'contr.poly'))
+logmodel.city <- lm(formula = ylog ~ city, data = city.stacked)
+summary(logmodel.city)
+```
+```{r}
+car::Anova(logmodel.city)
+```
+```{r}
+par(oma=c(0,0,3,0), mfrow=c(2,2))
+plot(logmodel.city, which = c(1,2,4,5), add.smooth=TRUE)
+```
+In the log model, we can see that the residuals are more normally distributed and the assumption of constant variance is met. 
+The R squared is 0.25, meaning that the model explains more of the variance in the response variable than the previous model.
+
+**Estimate all model parameters for the latter model. Explain what the parameters measure given the parametrization used.**
+
+```{r}
+coefs <- logmodel.city$coefficients
+coefs
+```
+
+
+```{r}
+# mu (on the log scale) 
+mu_estimate = coefs[1]
+mu_1 = mu_estimate + coefs[2]
+mu_2 = mu_estimate + coefs[3]
+
+# coefs for city 3: coefs2 + coefs3 + coefs4 = 0 
+# coefs 3 = - coefs2 - coefs3
+
+coefs_city3 <- - coefs[2] - coefs[3]
+mu_3 = mu_estimate + coefs_city3
+
+# The estimate of the error variance 
+# sigma^2 = MSE = SSE/(N-3) 
+# ssE = residuals in the ANOVA table 
+sigma2 = 60.724 / (60-3)
+
+```
+
+Sigma squared is the variance for log-chlorine levels measured in the same city (within city variance).
+
+Between city variance is the variance of the city means. 
+
+**State the hypotheses for testing whether the expected chlorine levels differ between the cities, choose a test level α and perform the test. What is the conclusion?**
+ 
+Test level alpha = 0.05 
+
+H0: mu_1 = mu_2 = mu_3 
+H1: At least one of the means are different. Some mu_i is not equal to the others.
+
+```{r}
+anova(logmodel.city)
+```
+```{r}
+# Find the critical F alpha value
+alpha <- 0.05
+v1 <- 3-1 
+v2 <- 60-3
+
+qf <- qf(1-alpha, df1 = v1, df2 = v2)
+qf
+
+# Find the F value
+
+MSA <- 20.771/2
+MSE <- 60.724/57
+
+F = MSA/MSE
+F
+
+```
+F > qf, so we reject the null hypothesis. There is a significant difference in the expected chlorine levels between the cities.
+This can also be seen in the ANOVA table, where the p-value is very low - less than the test level alpha at 0.05. 
+
+We conclude that there is a significant difference in the expected chlorine levels between the cities, at least one i E{1,2,3} is different from the others. From the observed means we know that cities 1 and 3 are significantly different from each other. To see if there are other combinations that are different, we would need to perform a post-hoc test - tukeys test. 
+
+**Test the pairwise differences between the cities using the Tukey test. Which cities are significantly different from each other?**
+
+```{r}
+library(mixlm) 
+
+post_hoc_tukey <- simple.glht(logmodel.city, "city", corr = c("Tukey"), level = 0.95) 
+print(post_hoc_tukey)
+```
+From the test above, we can see that there is a significant difference between: 
+1. City 1 and city 2, with a p-value of 0.001 
+2. City 1 and city 3, with a p-value of 0.0008 
+
+#### Alternative code: 
+
+```{r}
+cld(simple.glht(logmodel.city, "city", corr = c("Tukey"), level = 0.95))
+```
+In the table above we can see that city 1 is in a different group than city 2 and city 3. 
+City 2 and city 3 are not significantly different from city 1. 
+
+# 2 Ex-2: Data from the NSR education test 
+
+The Norwegian Centre for Science Recruitment (NSR) has an online “education test” where youths may answer a questionnaire to check their so-called cognitive types, their science interest, their preferred learning methods and their interest to various science subjects. The test suggests different areas within the STEM (Science, Technology, Engineering and Mathematics) within which the youth may find suitable work.
+
+```{r}
+# load the data 
+NCR.tbl <- BIAS.data::NSRdata
+NCR.tbl <- select(NCR.tbl, c('Science','Age')) 
+head(NCR.tbl)
+
+```
+
+Perform an analysis of the NSR data to check whether Age influences the liking to STEM subjects. State the model, fit the model, check model assumptions, test hypotheses, and give model critique. Write a short summary of the results.
+
+#### State the model 
+
+yij = mui + eij where eij ~ N(0, sigma^2)
+
+yij is the response variable, the liking to STEM subjects. 
+mui is the expected liking to STEM subjects for age group i, where i is the age level 1, 13, 16, 19 and 30. 
+eij is the residual error. 
+
+```{r}
+# find the unique levels of i (Age) 
+unique(NCR.tbl$Age)
+```
+#### Fit the model
+
+The alphas should sum to zero.
+
+```{r}
+options(contrasts = c('contr.sum', 'contr.poly'))
+model.NCR <- lm(formula = Science ~ Age, data = NCR.tbl)
+summary(model.NCR, cor = FALSE)
+```
+#### Check model assumptions 
+
+Assumptions: 
+1. Linear relationship between the response variable and the factor levels. 
+2. The error term eij is normally distributed with mean 0 and constant variance.
+3. The residuals are independent
+
+```{r}
+par(oma =c(0,0,3,0), mfrow = c(2,2)) 
+plot(model.NCR, which = c(1,2,4,5), add.smooth = TRUE)
+```
+We can see from the residuals vs fitted plot that the residuals have constant variance. 
+From the Q-Q-plot it seems like the assumption of normally distributed residuals is met. 
+
+#### Estimate the model parameters 
+
+```{r}
+coefs_NCR <- model.NCR$coefficients
+coefs_NCR
+```
+```{r}
+mu_NSR <- coefs_NCR[1] 
+mu_1_NSR <- mu_NSR + coefs_NCR[2] 
+mu_13_NSR <- mu_NSR + coefs_NCR[3] 
+mu_16_NSR <- mu_NSR + coefs_NCR[4] 
+mu_19_NSR <- mu_NSR + coefs_NCR[5] 
+
+# assumption that the alpha levels sum to zero
+coefs_30_NSR <- - coefs_NCR[2] - coefs_NCR[3] - coefs_NCR[4] - coefs_NCR[5]
+mu_30_NSR <- mu_NSR + coefs_30_NSR
+
+# Sigma^2 = SSE / df, from the ANOVA table
+sigma2_NSR <- 10270.5 / (10000 - 5)
+```
+#### Test hypotheses 
+
+Test level alpha: 0.05 
+
+Hypotheses: 
+H0: mu1 = mu2 = mu3 = mu4 = mu5 
+H1: At least one of the means are different. Some mui is not equal to the others. 
+
+```{r}
+# fit anova model 
+car::Anova(model.NCR)
+```
+```{r}
+# Find the critical F alpha value
+
+alpha = 0.05 
+v1_NSR = 5-1
+v2_NSR = 10000 - 5
+
+qf_NSR <- qf(1-alpha, df1 = v1, df2 = v2)
+
+
+MSA_NSR <- 224.8/4 
+MSE_NSR <-  10270.5/9995
+
+F_NSR <- MSA_NSR/MSE_NSR
+
+result <- F_NSR > qf_NSR
+result
+```
+F_NSR >> qf_NSR, so we reject the null hypothesis. There is a significant difference in the expected liking to STEM subjects between the age groups. 
+This can also be concluded by looking at the p-value in the ANOVA-table, which is much smaller than the test level alpha at 0.05.
+
+
+#### Post-hoc test by Tukeys 
+
+```{r}
+tukeys.NSR <- simple.glht(model.NCR, "Age", corr = c("Tukey"), level = 0.95)
+print(tukeys.NSR)
+```
+We can see that there is significant difference between these age groups with a p-value < 0.05:
+- Group 1 and 13 
+- Group 1 and 19 
+- Group 1 and 30 
+- Group 13 and 30 
+- Group 16 and 30
+- Group 19 and 30 
+
+From the confidence intervals, none  of these have 0 in the interval, so they are all significantly different from each other. 
+If 0 is included in the interval, it means that there is no significant difference between the two groups. 
+
+#### Alternative code:
+
+```{r}
+cld(simple.glht(model.NCR, "Age", corr = c("Tukey"), level = 0.95))
+```
+**Write a short summary of the results**
+
+The analysis of the NSR data shows that there is a significant difference in the expected liking to STEM subjects between the age groups. 
+The post-hoc test by Tukeys shows that there is a significant difference between many of the age groups. Age may therefore influence the liking to STEM subjects. 
+
+
+
+
+
+
+
+
+

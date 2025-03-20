@@ -1,0 +1,176 @@
+---
+title: "exercises_week_3"
+author: "Ane Kleiven"
+date: "2025-02-21"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+# 1 The mtcars data 
+
+### Load the data 
+```{r}
+# load the data 
+load('data/mtcars.Rdata')
+cars <- mtcars
+
+```
+
+
+### Fit linear regression model
+
+Miles Per Gallon (mpg) = response variable 
+Weight (wt) = predictor variable 
+Number of cylinders (cyl) = predictor variable 
+
+yit = b0 + b1xi + b2xi + ei 
+
+Where: 
+
+- i = 1,2,3,...,32 is the car number 
+- Yi is the `miles per gallon` of the car and is the response variable 
+- X1 is the `Weight` of the car and is the first predictor variable 
+- X2 is the `Number of cylinders` of the car and is the second predictor variable
+- εi is the error term for car number i, i.e. the difference between observed and expected miles per gallon for car number i. 
+
+Model assumptions: 
+
+- There is a linear relationship between x and y 
+- The error terms are normally distributed 
+- The error terms have a constant variance σ2 for all cars
+- The error terms are independent 
+
+```{r}
+# Fit linear regression model
+lm.mpg <- lm(mpg ~ wt + cyl, data = cars)
+
+```
+### Check model assumptions 
+
+```{r}
+# Check model assumptions
+
+# define graphical parameters for the plot 
+par <- par(oma=c(0,0,3,0), mfrow=c(2,2))
+
+# make diagnostic plots
+plot(lm.mpg, which = c(1,2,4,5), add.smooth=FALSE)
+```
+Assumptions: 
+
+1. Linearity: The relationship between the predictors and the response is linear.
+2. Independence: The residuals are independent of each other. 
+3. Homoscedasticity: The residuals have constant variance.
+4. Normality: The residuals are normally distributed.
+
+The diagnostic plots show that the assumptions of linearity, independence, and homoscedasticity are met. However, the assumption of normality is violated, as the residuals do not follow a normal distribution. We can see that the points in the Q-Q plot deviate from the straight line, indicating non-normality.
+
+### Report the regression results and compute the ANOVA table 
+
+```{r}
+summary(lm.mpg)
+```
+```{r}
+anova(lm.mpg)
+```
+### Write a short report on the results 
+
+The linear regression model predicts the miles per gallon (mpg) of a car based on its weight (wt) and number of cylinders (cyl). The model is given by:
+
+yit = 39.68 - 3.19 * wt -1.5 * cyl + ei 
+
+We can see that both predictor variable are significant at the 0.05 level, as the p-values are less than 0.05.
+Both predictor are negative, implying that the mileage decreases as the weight and number of cylinders increase. 
+
+The adjusted R-squared value of 0.83 indicates that the model explains 83% of the variance in the response variable. 
+
+The ANOVA table shows that the overall model is significant, at 0.05 level.
+
+The residual plot of fitted values versus residuals gives an indication of a non-linear relationship, which may be a result of non-linear dependencies or missing explanatory variables. The normal probability plot is more or less OK. 
+
+
+# 2 Influential measurements 
+
+Task: Use the influence.measures function to compute the Cook’s distances and the leverage (hat) values for all observations according to the cars1 model. A rule of thumb is that Cook’s distance (column ‘cook.d’) larger than 1, and leverage (column ‘hat’) above 2p/n
+ should be checked for influence. Are there any influential observations according to these measures?
+ 
+```{r}
+influence <- influence.measures(lm.mpg)
+influence
+```
+Cook's distsnce: assesses the influence of each observation in the overall regression model. It measures how much the predicted values would change if the observation was removed from the data set. The larger the Cook's distance, the more influential the observation is. 
+
+cook.d (cook's distance): there are no values larger than 1 in the data set. 
+
+
+hat (leverage): 2p/n = 2*3/32 = 0.1875 
+ 
+ There are three cars in the data set with high leverage: 
+ - Chrysler Imperial 
+ - Cadillac Fleetwood
+ - Lincoln Continental
+ 
+Since the cooks distance is not larger than 1, we can conclude that there are no influential observations in the data set. Their positions in the predictor space are not extreme enough to have a large impact on the regression coefficients.
+ 
+
+# 3 Model selection 
+
+### Fitting a model with many predictors 
+
+```{r}
+lm.mpg.2 <- lm(mpg ~ cyl + disp + hp + drat + wt + qsec, data = cars) 
+summary(lm.mpg.2)
+```
+The model seems to be overfitted, since the adjusted R-squared value is 0.84, which is only slightly higher than the adjusted R-squared value of the previous model (0.83). The additional predictors do not seem to improve the model significantly. Only weight is significant at the 0.05 level. 
+
+Having many predictor variables may lead to inflated standard errors of the estimates due to correlation between predictors, and problems finding truly significant predictors. 
+
+
+### Model selection using best subset selection in mixlm 
+
+```{r}
+library(mixlm)
+
+# best subset selection
+
+best.subsets(lm.mpg.2, nbest = 3) 
+```
+
+The largest R-squared adjusted values is 0.83, containing the predictor variables cyl, hp and wt. 
+This is a quite simple model, which we should always strive for. I would therefore choose this model. 
+The models using more predictors doesn't explain more of the model. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

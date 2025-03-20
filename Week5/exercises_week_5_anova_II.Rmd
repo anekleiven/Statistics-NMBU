@@ -1,0 +1,202 @@
+---
+title: "ANOVA II"
+author: "Ane Kleiven"
+date: "2025-03-05"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1 Ex-1: Data from the NSR education test, revisited 
+
+See exercises week 4, the Tukey's test was performed in the last task. 
+
+
+# 2 Ex-2: Yield of Barley 
+
+Parametrization: 
+
+- Sum to zero contraint: 
+
+Sum of all levels of i in factor a must be zero 
+Sum of all levelse of j in factor b must be zero
+Sum of all levels of i in the interaction ab, sum of all levels of j in the interaction term) 
+
+- The model:
+
+yijk = mu + ai + bj + (ab)ij + eijk 
+
+Where y is the response variable yield of barley 
+Mu is the grand mean 
+ai is the effect of the ith level of factor a (Variety) 
+bj is the effect of the jth level of factor b (Soil) 
+(ab)ij is the interaction effect between the ith level of factor a and the jth level of factor b
+eijk is the random error term with mean zero and variance sigma squared 
+
+### Fit the model in R 
+
+```{r}
+# load data 
+library(mixlm)
+library(car)
+library(effects)
+library(BIAS.data)
+
+data(Barley)
+
+# fit the model
+
+mod1 <- lm(Yield ~ Variety * Soil, data = Barley, contrasts="contr.sum")
+summod1 <- summary(mod1, cor=FALSE)
+print(summod1)
+
+```
+
+```{r}
+anova(mod1)
+```
+
+
+### Estimate model parameters 
+
+**Model parameter:** 
+
+- mu: 385.17
+- ai: 56.96
+- bj: -35.71
+- (ab)ij: -73.62
+- sigma squared (unexplained variability) = MSE = 2981 (SSE/df) 
+
+### Interaction plot 
+
+```{r}
+# plot(allEffects(mod1, confidence.level = 0.95)) 
+```
+
+*NB: the code doesn't work on my computer, even if it looks the same as Solve's code. I will try to solve this later.* 
+From the plot we can see that the yield of Barley is higher in the combination of variety C2 and soil type 2 (Clay). 
+For the Clay, the yield of barley is higher with both levels of variety. 
+
+Solves answer:
+*From the plot, it seems that a farmer can expect an increase in yield when using Variety 2 instead of Variety 1 for both types of soil, and there may be a higher gain of Variety 2 over Variety 1 for soil-type 2 than for soil type 1. If this is so, there is a so-called interaction effect of Variety and soil on yield.* 
+
+### Perform a hypothesis test of the interaction effect 
+
+H0: (ab)ij = 0 
+H1: some level of (ab)ij != 0 
+
+Significance level: 0.05 
+
+```{r}
+anova(mod1) 
+```
+
+We can see from the anova table that the p-value for the interaction term is 0.0668. 
+Since this is higher than the significance level, we fail to reject the null hypothesis. 
+We can not say that there is a significant interaction effect between the variety and soil type on the yield of barley. 
+
+The slight non-parallell tendency in the interaction plot may be due to random errors. 
+
+### Fit a four factor model 
+
+```{r}
+mod2 <- lm(Yield ~ Variety * Soil * Fertilizer * Site, data = Barley, contrasts="contr.sum") 
+anova(mod2)
+```
+```{r}
+summary(mod2)
+```
+From the model summary, we can see that there is one significant main effect, and one significant interaction effect at 5% significance level: 
+
+1. Fertilizer main effect 
+2. Interaction effect between Soil and Fertilizer 
+
+However, the least squares estimator is prone to inflated variance estimates and difficulties in finding significance when the number of variables k rises compared to the number of observations N and if variables are highly correlated. Too many variables to estimate from a limited number of observations leaves few degrees of freedom to SSE, and tests with low power. Lack of significance may be an over-fitting problem. By removing some of the least significant variables, the problem is reduced, and a reduced model with significant effects may be identified.
+
+The large difference between R2 and R2adj is also an indication of an over-fitted model.
+
+### Reduced model with `backward()` in mixlm 
+
+```{r}
+mod3 <- backward(mod2, alpha=0.05, full = TRUE, hierarchy = TRUE)
+```
+```{r}
+anova(mod3)
+```
+The reduced model includes: 
+
+- The main effects of all four factors (three of four significant) 
+- Five 2-order interactions (three significant)
+- Two three order interactions (significant) 
+
+The principle of marginality says that one should keep all higher order effects if the interactions are significant, therefore some main effects and 2-order interactions are included in the reduced model. 
+
+### Model check of the reduced model (residual analysis) 
+
+```{r}
+par(oma =c(0,0,3,0), mfrow = c(2,2)) 
+plot(mod3, which = c(1,2,4,5), add.smooth = TRUE)
+```
+
+The residual plot shows that the residuals are randomly distributed around zero, and the residuals are homoscedastic. 
+### Make third order interaction plot between `Variety`, `Site` and `Soil` 
+
+```{r}
+#eff <- allEffects(mod3, confidence.level = 0.95) 
+#plot(eff[2]) 
+```
+
+The interaction effect is significant because the lines are not parallel. The effect of Soil on Yield is different for the two Varieties and the effect of Soil on Yield for one Variety may depend on Site. This is a three-way interaction effect.
+
+# 3 Ex-3: Indicator variable (ANCOVA model) 
+
+Fit the model 
+
+Miles Per Gallon (mpg) = response variable 
+Weight (wt) = predictor variable 
+Number of cylinders (cyl) = predictor variable 
+Am = indicator variable for automatic transmission (1 = automatic, 0 = manual) 
+
+yi = b0 + b1x1 + b2x2 + b3x3 + b4x2*x3 + ei 
+
+Where: 
+
+- i = 1,2,3,...,32 is the car number 
+- Yi is the `miles per gallon` of the car and is the response variable 
+- X1 is the `Number of cylinders` of the car and is the second predictor variable
+- X2 is the `Weight` of the car and is the first predictor variable 
+- X3 is the `Automatic transmission` of the car and is the third predictor variable
+- εi is the error term for car number i, i.e. the difference between observed and expected miles per gallon for car number i. 
+
+Model assumptions: 
+
+- There is a linear relationship between x and y 
+- The error terms are normally distributed 
+- The error terms have a constant variance σ2 for all cars
+- The error terms are independent 
+
+```{r}
+mtcars$am <- factor(mtcars$am)
+
+cars <- lm(mpg ~ cyl + wt * am, data=mtcars, contrasts= list(am = "contr.sum"))
+summary(cars)
+```
+For the automatic transmission (am = x3 = 1): 
+
+y hat = 40.25 -1.18x1 -4.47x2 -5.97 + 2.10x2 = 34.28 - 1.18x1 - 2.37x2
+
+For the manual transmission (am = x3 = -1): 
+
+y hat = 40.25 -1.18x1 -4.47x2 + 5.97 - 2.10x2 = 46.22 - 1.18x1 - 6.57x2
+
+We observe that the negative effect of weight on miles per gallon is larger for manual transmission cars than for automatic transmission cars. 
+
