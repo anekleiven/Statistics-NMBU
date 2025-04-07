@@ -28,6 +28,18 @@ This repository contains weekly exercises and materials for the STAT340 statisti
 - [exercises_week_6_PCA.Rmd](Week6/exercises_week_6_PCA.Rmd) - R Markdown exercises on PCA
 - [exercises_week_6_PCA.html](Week6/exercises_week_6_PCA.html) - Compiled HTML output
 
+### 📊 Week 7: Advanced Multivariate Analysis
+- [exercises_week_7.Rmd](Week7/exercises_week_7.Rmd) - R Markdown exercises on advanced multivariate methods
+- [exercises_week_7.html](Week7/exercises_week_7.html) - Compiled HTML output
+
+### 🧩 Week 8: Clustering
+- [exercises_week_8.Rmd](Week8/exercises_week_8.Rmd) - R Markdown exercises on clustering techniques
+- [exercises_week_8.html](Week8/exercises_week_8.html) - Compiled HTML output
+
+### 🔍 Week 9: Classification
+- [exercises_week_9.Rmd](Week9/exercises_week_9.Rmd) - R Markdown exercises on classification methods
+- [exercises_week_9.html](Week9/exercises_week_9.html) - Compiled HTML output
+
 ## 🛠️ Getting Started
 
 1. Clone this repository
