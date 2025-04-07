@@ -1,0 +1,145 @@
+---
+title: "Exercises STAT340 - PCR and PLSR"
+author: "Ane Kleiven"
+date: "2025-03-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+#1 Ex-1: Prediction of cow milk percentage
+
+```{r}
+library(BIAS.data)
+library(mixlm)
+library(pls)
+
+data(Maldi.train)
+head(Maldi.train)
+```
+
+### Run PCA on X 
+
+a) First run a PCA on X and let the name of the model be “PCAModel.1”. Do not choose to scale the data here, but run PCA on the original (but centered) variables. How many components are needed to explain 80% and 90% of the variability in X?
+
+```{r}
+PCAModel.1 <- prcomp(Maldi.train[,-1], center =TRUE , scale = FALSE)
+summary(PCAModel.1)
+```
+**How many components are needed to explain 80% and 90% of the variability in X?** 
+
+80% of the variability in X is explained by 5 principal components. 
+90% of the variability in X is explained by 36 principal components.
+
+b) Copy exactly the code below into the script-window, highlight all lines and press “submit”. This will add 15 principal components to the data set.
+
+
+```{r}
+Maldi.train.tmp <<- within(Maldi.train, {
+    PC15 <- PCAModel.1$x[,15]
+    PC14 <- PCAModel.1$x[,14]
+    PC13 <- PCAModel.1$x[,13]
+    PC12 <- PCAModel.1$x[,12]
+    PC11 <- PCAModel.1$x[,11]  
+    PC10 <- PCAModel.1$x[,10]
+    PC9 <- PCAModel.1$x[,9]
+    PC8 <- PCAModel.1$x[,8]
+    PC7 <- PCAModel.1$x[,7]
+    PC6 <- PCAModel.1$x[,6]
+    PC5 <- PCAModel.1$x[,5]
+    PC4 <- PCAModel.1$x[,4]
+    PC3 <- PCAModel.1$x[,3]
+    PC2 <- PCAModel.1$x[,2]
+    PC1 <- PCAModel.1$x[,1]
+  })
+```
+
+Switch data set to Maldi.train.tmp in the analyses in this exercise. Fit a multiple linear regression model with PC1-PC15 as predictor variables, and Y as response. This is in a way a PCR model. 
+
+```{r}
+PCRModel.1 <- lm(Percent_milk ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15, data = Maldi.train.tmp)
+summary(PCRModel.1)
+```
+
+**How many components are significant at a 5% level? ** 
+
+10 components are significant at a 5% level. 
+
+Run a backward variable selection using the backward-function in the mixlm-package and with significance level “alpha to remove” equal to 0.05. 
+
+```{r}
+PCRModel.2 <- backward(PCRModel.1, alpha = 0.05) 
+```
+
+**How many components are left in the model and by that appear to be relevant for the response, milk percentage?** 
+
+10 compontents are left in the model and appear to be relevant for the response, milk percentage.
+
+c) Now fit a Principal component regression model with up to 15 components (which parallels your manual PCR model from exercise b.) and name it “PCRModel”. Also run 10-fold cross-validation. This means that 10% of the data are in turn left out as test samples, and the models are fitted to the 90% rest of samples. This is repeated 10 times. This is a quicker cross-validation than Leave-one-out CV. 
+
+```{r}
+PCRModel <- pcr(Percent_milk ~ ., data = Maldi.train, ncomp = 15, scale = FALSE, validation = "CV", segments = 10)
+summary(PCRModel)
+
+```
+**Make a RMSEP-plot. How many components do you think is needed in the prediction model for cow-milk content?**
+
+```{r}
+plot(RMSEP(PCRModel))
+```
+
+From the RMSEP-plot, it seems like 11 components is needed in the prediction model for cow-milk content. After 11 components, the RMSEP-curve flattens out. 
+We can also see this in the crossvalidation, where 95% of the variance is explained by 11 components. 
+
+
+d) Make a score plot with number labels. As mentioned above the data consist of 4 replicated measurements of the same sample. Hence, observations 1-4, 5-8, 9-12 and so on represent replicates in groups of four observations and should be quite similar (correlated) to each other. Do you see any sign of clustering of replicates in the score plot?
+
+```{r}
+scoreplot(PCRModel , comp = c(1,2), labels = 1:dim(Maldi.train)[1], title('Scoreplot'))
+```
+
+Yes, there appears to be some clustering of replicates. This is a good thing since it shows that replicated measurements are not very variable and that the Maldi-tof spectroscopy is quite reliable and results are reproducable.
+For instance, the observations 97-100 and 153-156 are close to each other in the scoreplot. 
+
+e) Fit instead a PLS-regression model to the data, again with 10-fold cross-validation. Make a RMSEP-plot and suggest the number of components needed for optimal prediction of test samples.
+
+```{r}
+PLSModel <- plsr(Percent_milk ~ ., data = Maldi.train, ncomp = 15, scale = FALSE, validation = "CV", segments = 10)
+summary(PLSModel)
+```
+```{r}
+plot(RMSEP(PLSModel))
+```
+
+As we can see from the RMSEP-plot PLS appears to need much fewer components than PCR. From the plot I would suggest 9 components as a good choice for a prediction model for cow-milk content (results may vary due to the randomness of CV-segment partitioning).
+From the crossvalidation, we can see that 95% of the variance is explained by only 5 components.
+
+f) Predict the cow-milk content of the 45 test samples in the data file “Malditest.Rdata” by loading the data set into RStudio and copy-paste the R-code below into the Console window and run it. This will as an example predict the test samples and compute the RMSEP for a PCR model with 1 component. Make a scatterplot showing the predicted responses versus the true responses of the test samples and compute the correlation between them. You should use the number of components (the Ncomp value) to whatever you found as a good component number in exercise c. You can also change the model from “PCRModel” to “PLSModel” to use the PLS-model with some chosen component number to predict the test samples. Which model predicts best (smallest RMSEP)? Comment on the results.
+
+```{r}
+data("Maldi.test")
+
+Ncomp <- 11
+Model <- PCRModel
+yhat <- predict(Model, newdata=Maldi.test, ncomp=Ncomp)[,,1]
+plot(yhat, Maldi.test$Percent_milk)
+cor(yhat, Maldi.test$Percent_milk)
+
+#To make sure that the RMSEP-function in the pls-package is used:
+pls::RMSEP(PCRModel, estimate="test", newdata=Maldi.test, ncomp=Ncomp)
+```
+
+```{r}
+
+Ncomp <- 9
+Model <- PLSModel
+yhat <- predict(Model, newdata=Maldi.test, ncomp=Ncomp)[,,1]
+plot(yhat, Maldi.test$Percent_milk)
+cor(yhat, Maldi.test$Percent_milk)
+
+#To make sure that the RMSEP-function in the pls-package is used:
+pls::RMSEP(PLSModel, estimate="test", newdata=Maldi.test, ncomp=Ncomp)
+```
+

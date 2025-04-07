@@ -1,0 +1,154 @@
+---
+title: "STAT340, Clustering analysis"
+author: "Ane Kleiven"
+date: "2025-03-27"
+output: 
+  html_document:
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Load R-packages 
+
+```{r}
+library(tidyverse)
+library(ggdendro)
+library(ggplot2)
+library(BIAS.data)
+```
+
+
+# 1 Exercise 1 - Bird presence & abundence in Norway 
+
+a) Below there are three tables. In the table on top are the Euclidean distances between the abundance measures for the four species, A–D, shown in the figure above. The second table is the table after merging species C and D into the first cluster (called C/D). Use the single linkage method to fill in the missing distances in this table. Finally, there is a 2 × 2 table at the bottom for the second clustering iteration. Write down the table and fill in the missing “cluster names” (?/?) as well as the missing distances (NA).
+
+Before the 1st iteration:
+
+After the first iteration: 
+
+```{r}
+        A     B     C/D
+
+A     0.0   125.2  126.3
+
+B     125.2  0.0   106.7
+
+C/D   126.3  106.7
+```
+
+After the second iteration: 
+
+```{r}
+           A      B/C/D
+
+A         0.0     125.2
+
+B/C/D    125.2     0.0
+```
+
+b) Sketch the corresponding dendrogram for this hierachical clustering.
+
+       ┌── C
+   ┌───┤
+   │   └── D
+───┤
+   └── B
+       │
+       A
+       
+c) Load the data for the four most common birds using data(Birds4) and run hierarchical clustering in RStudio with single linkage and Euclidean distances. Plot the dendrogram. This should yield the same dendrogram as the one you sketched in exercise b). Use the results from here to check your answer in exercise a).
+
+```{r}
+Birds4 <- BIAS.data::Birds4
+
+hierarc_clustering <- hclust(dist(Birds4, method = 'euclidean'), method = "single")
+plot(hierarc_clustering, hang = -1, main = "Single linkage clustering", xlab = "", sub = "") 
+
+```
+
+#### Check answers in a
+
+```{r}
+round(hierarc_clustering$height, digits = 1)
+```
+
+We can see that the height measurements are the same as the ones proposed in task a, my answer is correct. 
+
+d) Load the file data(Birds) containing data for 25 bird species. Compute a Euclidean distance matrix and compare different linkage methods with dendrograms.
+
+```{r}
+# read the data 
+
+Birds <- BIAS.data::Birds
+```
+
+#### Single linkage method 
+
+```{r}
+single_birds <- hclust(dist(Birds, method = 'euclidean'), method = "single") 
+
+ggdendrogram(single_birds, rotate = TRUE, theme_dendro = FALSE) + 
+  theme_minimal() + 
+  labs(title = "Single linkage clustering", x = "", y = "")
+```
+
+#### Complete linkage method
+
+```{r}
+complete_birds <- hclust(dist(Birds, method = 'euclidean'), method = "complete")
+
+ggdendrogram(complete_birds, rotate = TRUE, theme_dendro = FALSE) + 
+  theme_minimal() + 
+  labs(title = "Complete linkage clustering", x = "", y = "")
+```
+
+#### Average linkage method
+
+```{r}
+average_birds <- hclust(dist(Birds, method = 'euclidean'), method = "average")
+
+ggdendrogram(average_birds, rotate = TRUE, theme_dendro = FALSE) + 
+  theme_minimal() + 
+  labs(title = "Average linkage clustering", x = "", y = "")
+```
+
+e) Repeat exercise d) with average linkage, but change the distance method from Euclidean to Manhattan. Compare the two average linkage dendrograms. Does the grouping change much?
+
+```{r}
+average_manhattan <- hclust(dist(Birds, method = 'manhattan'), method = "average")
+
+ggdendrogram(average_manhattan, rotate = TRUE, theme_dendro = FALSE) + 
+  theme_minimal() + 
+  labs(title = "Average linkage clustering with Manhattan distance", x = "", y = "")
+```
+
+The dendrograms look quite the same! However, this might not always be the case.
+
+f) Let’s return to the research question: which birds have similar distribution in Norway during winter? How does your answer depend on linkage method and distance measure?
+
+In the single linkage, herring is closely linked to fieldfare. 
+In the complete linkage, herring is closely linked to great-black-backed gull. 
+In the average linkage, herring is closely linked to great-black-backed gull.
+
+So the answer depends on which linkage method we use. 
+
+g) You can read about other distance measures in the help file for distance measures in R. Write ?dist in the console window and press enter. For instance, under Details you can read about “binary” distance. Use the code below to compute a binary distance matrix and plot the dendrogram with average linkage. 
+
+It measures occurrence. 
+
+```{r}
+binary_birds <- hclust(dist(Birds4, method = 'binary'), method = "average")
+
+ggdendrogram(binary_birds, rotate = TRUE, theme_dendro = FALSE) + 
+  theme_minimal() + 
+  labs(title = "Binary distance clustering", x = "", y = "")
+```
+

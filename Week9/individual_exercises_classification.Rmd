@@ -1,0 +1,173 @@
+---
+title: "Individual exercises, classification"
+author: "Ane Kleiven"
+date: "2025-04-03"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+    number_sections: false 
+    theme: simplex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+
+# Iris data set 
+
+### Load R-packages
+
+```{r}
+library(tidyverse)
+library(BIAS.data) 
+library(MASS)
+library(GGally)
+library(mixlm)
+```
+
+
+### Load the training and test data sets 
+
+```{r}
+iris.test <- BIAS.data::iris.test 
+iris.train <- BIAS.data::iris.train
+```
+
+### Task A 
+
+*Consider the famous iris dataset iris.train.rdata introduced in the lectures. Reproduce the pairs plot for the four sepal and petal variables as given in the lectures. Which variable appears to be discriminating the species best? And which is worst?*
+
+```{r}
+pairs(iris.train[1:4], fill = iris.train$Species, pch = 21, cex = 1.5, col = "lightgrey", bg = iris.train$Species)
+```
+```{r}
+ggpairs(iris.train[,1:4], aes(color = iris.train$Species)) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(title = "Pairs plot of iris data set") + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_color_manual(values = c("lightpink", "coral")) + 
+  scale_fill_manual(values = c("lightpink", "coral")) 
+```
+
+Petal length and petal width are the best discriminating variables, while sepal length and sepal width are the worst.
+
+### Task B 
+
+*Explain the difference between “discrimination” and “classification”.* 
+
+Discrimination refers to the process of identifying the differences between classes or groups based on their features. It focuses on understanding how different classes can be separated in the feature space.
+
+Classification, on the other hand, is the process of assigning a new observation to one of the predefined classes based on its features. 
+
+In other words, classification is a specific application of discrimination where we use the learned discriminative information to make predictions on new data. 
+
+We classify new data, we discriminate between classes in "existing" data. 
+
+### Task C 
+
+*Explain what is meant by the assumption “We assume a priori that versicolor andvirginica are equally likely”.* 
+
+The assumption means that we consider the probability of observing a versicolor flower to be the same as the probability of observing a virginica flower in the population. 
+In other words, we do not have any prior information suggesting that one species is more likely to occur than the other. Given two classes, the prior of class A = prior of class B = 0.5. 
+
+### Task D 
+
+*Fit an LDA model to the iris data using Sepal.Length as the predictor. Assume equal prior probabilities for both species. Print your fitted model. What are the sample means of each species for this predictor variable?* 
+
+```{r}
+lda.model <- lda(Species ~ Sepal.Length, data = iris.train, prior = c(0.5, 0.5))
+lda.model
+```
+The group means for the predictor variable Sepal.Length are: 
+5.8950 for versicolor
+6.5925 for virginica 
+
+### Task E
+
+*Perform a Leave-One-Out Cross-Validation of the model you fitted in theprevious exercise. Report the confusion matrix, the accuracy and the cross-validatederror rate.* 
+
+```{r}
+lda.model <- lda(Species ~ Sepal.Length, data = iris.train, prior = c(0.5, 0.5), CV = TRUE)
+conf.matrix <- confusion(iris.train$Species, lda.model$class)
+
+```
+
+Accuracy = number of correct predictions / total number of predictions = (32+29)/80 = 0.7625 
+Cross-validated error rate = 1 - accuracy = 1 - 0.7625 = 0.2375
+Error rate = false predictions / total num predictions = (8+11)/80 = 0.2375
+
+### Task F 
+
+*Use the scheme from exercises d. and e. to identify a good classifier for iris species. You may use either lda or qda and you may use one or several predictors. Report the cross-validated error for you “best choice”.*
+
+```{r}
+best.mod <- qda(Species ~ Petal.Length + Petal.Width, data = iris.train, prior = c(0.5, 0.5), CV = TRUE)
+conf.matrix <- confusion(iris.train$Species, best.mod$class) 
+```
+The best model is the quadratic discriminant analysis (QDA) model using Petal.Length and Petal.Width as predictors, with prior equal 0.5 and Leave-One-Out Cross-Validation. 
+
+accuracy = number of correct predictions / total number of predictions = (38+38)/80 = 0.95
+The cross validated error rate: (2+2) / 80 = 0.05
+
+### Task G 
+
+*What is the model assumption difference between an LDA and a QDA model?* 
+
+In LDA we assume constant variance and covariance across the groups, meaning that the classes share the same covariance matrix. 
+In QDA, we allow for different covariance matrices for each class, meaning that the classes can have different variances and covariances.
+
+### Task H 
+
+*Use the model of your choice to predict the samples in iris.test.rdata. Use theconfusion()-function in the mixlm-library to evaluate the performance of your classifier* 
+
+```{r}
+predict_iris.test <- qda(Species ~ Petal.Length + Petal.Width, data = iris.test, prior = c(0.5, 0.5), CV = TRUE)
+conf.matrix <- confusion(iris.test$Species, predict_iris.test$class)
+```
+accuracy: 0.95 
+The cross-validated error rate: 0.05 
+
+The model performs well both on test- and training data! 
+
+### Task I 
+
+*Use a logistic model of your choice (perhaps the same predictors as you used in your best choice classifier of part a) to estimate the posterior probabilities of “virginica” for the samples of the iris.test.Rdata set. Allocate the samples to the most probable speciesclass and use the confusion() function to evaluate the classification performance.* 
+
+```{r}
+logistic.model <- glm(Species ~ Petal.Length + Petal.Width, data = iris.train, family = binomial)
+
+iris.test$postprob <- predict(logistic.model, new = iris.test, type = "response") 
+boxplot(iris.test$postprob ~ iris.test$Species, xlab = "Species", ylab = "Posterior probability of virginica", main = "Posterior probabilities of virginica")
+
+```
+
+The boxplot shows that virginica has the highest posterior probability, while versicolor has the lowest. We will therefore classify samples with posterior probability > 0.5 as virginica and those with posterior probability < 0.5 as versicolor. 
+
+```{r}
+predicted.classes <- factor(ifelse(iris.test$postprob > 0.5, "virginica", "versicolor")) 
+counts <- table(predicted.classes, iris.test$Species)
+counts
+```
+
+
+```{r}
+conf.matrix <- confusion(iris.test$Species, predicted.classes)
+```
+
+accuracy: 0.95
+error rate: 0.05 
+
+specificity for versicolor: True negative rate = TN / (TN + FP) = 9 / (9 + 1) = 0.9 
+specificity for virginica: true negative rate = 10 / (10 + 0) = 1.0 
+
+sensitivity (RECALL) for versicolor: true positive rate = TP / (TP + FN) = 10/(10 + 0) = 1.0 
+sensitivity (RECALL) for virginica: true positive rate = TP / (TP + FN) = 9/(9 + 1) = 0.9
+
+precision for versicolor: TP / (TP + FP) = 10/(10 + 0) = 1.0 
+precision for virginica: TP / (TP + FP) = 9/(9 + 1) = 0.9
+
+F1 score for versicolor: 2 * (precision * recall) / (precision + recall) = 2 * (10/(10 + 0) * 10/(10 + 0)) / (10/(10 + 0) + 10/(10 + 0)) = 1.0
+F1 score for virginica: 2 * (precision * recall) / (precision + recall) = 2 * (9/(9 + 1) * 9/(9 + 1)) / (9/(9 + 1) + 9/(9 + 1)) = 0.9473684
+

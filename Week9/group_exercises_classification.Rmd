@@ -1,0 +1,187 @@
+---
+title: "Group Exercises: Classification"
+author: "Ane Kleiven"
+date: "2025-04-03"
+output: 
+  html_document:
+    html_document: 
+    toc: true
+    toc_float: true
+    number_sections: false 
+    theme: simplex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Import R-packages from library
+
+```{r}
+library(BIAS.data)
+library(MASS)
+library(mixlm)
+library(tidyverse)
+library(ggfortify)
+library(ggplot2)
+
+```
+
+## Import DATA 
+
+```{r}
+poems <- BIAS.data::poems
+poems.test <- BIAS.data::poems.test
+```
+
+## Exercise 1 - Analysis of ‘Deconstructed’ Poems by PCA
+
+**Convert table into long format**
+
+```{r}
+poems.long <- poems %>%
+pivot_longer(-Author, names_to = "letter", values_to = "freq") %>%
+mutate(letter = as_factor(letter)) # convert 'letter' to factor to keep the order
+poems.long
+```
+
+**Create a barplot of the frequency of letters in the poems** 
+
+```{r}
+ggplot() + 
+  geom_bar(data = poems.long, mapping = aes(x = letter, y = freq, fill = Author), stat = "identity") +   labs(x = "Letter", y = "Frequency", title = "Letter frequency in poems") +
+  facet_grid(rows = vars(Author)) + 
+  theme_light() + 
+  scale_fill_manual(values = c("lightpink", "lightyellow2","lightblue")) +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+The distribution of letters looks quite equal for all the authors. 
+
+**Conduct a principal component analysis using the poem data. What portion of the total variance in the data is captured jointly by the two first components? How many principal components are needed to explain 80 % of the variability?** 
+
+```{r}
+pca <- prcomp(poems[,-1], scale=TRUE)
+summary(pca) 
+```
+
+34 % of the variability is explained by the two first components. 
+To explain 80 % of the variability, we need 9 principal components. 
+
+**Which variable (letter/character) has the largest influence (loading) on PC1 (have a look atpca$rotation)? Which variable is most influential on PC2?**
+
+For PC1, “space” has the largest influence (about -0.33). It’s loading is negative, meaning that authors that use a lot of space in their poems end up with a low PC1 score. 
+Other characters have almost equally large influence in PC1, namely “t” and “u”. 
+However, they have a positive loading, meaning that authors that use a lot of t’s and u’s end up with a large PC1 score.
+
+For PC2, the letters “l” and “n” have the largest influence, and has noteworthy larger loading compared to the other characters
+
+```{r}
+pca$rotation
+```
+**Create a biplot and comment. Do you think PC1 and PC2 are good variables for discriminating between the three authors?.** 
+
+```{r}
+autoplot(pca,
+x = 1, # plot PC1 on the x-axis
+y = 2, # plot PC2 on the y-axis (play around with this)
+data = poems, # you have to refer to the original data set for colourscale = 0, # don't use the scaling implemented in autoplot()
+size = 4, # size of points
+loadings = TRUE,
+loadings.label = TRUE,
+loadings.label.size = 4,
+loadings.label.repel = TRUE,
+loadings.label.colour = "grey70",
+loadings.colour = "grey70",
+colour = "Author") +
+scale_colour_viridis_d() +
+theme_minimal()
+```
+ 
+Based on the biplot, Blake is well separated from the other two authors, while the other two authors are more similar and harder to discriminate. 
+
+The biplot combines the information from a scoreplot and the loadingplot.
+We see that poems written by Blake tend to be in the left half of the biplot. We infer from the biplot that poems of Blake contain more characters such as for instance space, exclamation mark (!), “a” and “m”.
+
+There is little overlap between poems of Blake and poems of the other authors.
+Poems written by Eliot tend to be in the middle/upper right half of the biplot, whereas poems written by Shakespeare tend to be in the middle/lower right half. There is an overlap between poems of Eliot and Shakespeare. We infer that poems from these authors contain more characters such as for instance “r”, “u”, and “t”.
+
+We should be careful about the inferences above since only 34 % of the total variability in data is explained by PC1 and PC2, and because there are few data points (sample size is low).
+However, for these 22 poems, it seems that we can discriminate poems by Blake quite well from poems by Eliot and Shakespeare using PC1 and PC2. It seems harder to discriminate poems by Eliot from poems by Shakespeare using PC1 and PC2.
+
+## Exercise 2 - Predicting authorship with LDA 
+
+**Compute the PC1- and PC2-scores of the poems in poems.test using the PCA from Exercise 1b).**
+
+The purpose of the linear discriminant analysis is to find combination of the variables (PC1 and PC2) that give best possible separation between groups (Blake, Eliot, Shakespeare).
+
+```{r}
+scores.test <- predict(pca, newdata = poems.test[,-1])
+scores.test <- cbind(Author = poems.test$Author, as_tibble(scores.test))
+scores.test
+```
+
+**Conduct a linear discriminant analysis (LDA) using PC1 and PC2 from exercise 1b) as predictors to classify the six ‘test’ poems to either Shakespeare, Blake or Eliot.** 
+
+```{r}
+# First, we need to make a new data frame containing the information
+# about the author and the first two principal components.
+scores.poems <- cbind(Author = poems$Author, as_tibble(pca$x))
+
+lda.poems <- lda(Author ~ PC1 + PC2, data = scores.poems)
+lda.poems
+```
+“Call” gives the linear discriminant analysis that was formulated. Here, we try to discriminate the Authors in the 22 poems based on PC1 and PC2, from the scores.poems data set. We have not included the 6 new poems in this analysis.
+
+“Prior probabilities of groups” gives the prior probabilities of each group. Because we didn’t specify the prior probabilties in the lda() function, R uses the proportion of poems by each author as the prior probabilities.
+
+“Group means” gives the group means in PC1 and PC2 for each author.
+
+“Coefficients of linear discriminants”: R calculates linear discriminant functions, which are weighted sums of predictor variables. The predictor variables are PC1 and PC2, and the weights are the coefficients. 
+For instance, LD1 = 0.886 · P C1 + 0.100 · P C2. We see that PC1 is most important in defining LD1 and PC2 is most important in defining LD2. 
+
+“Proportion of trace:” this is the percentage separation achieved by each linear discriminant function. About 97 % of the poems are separated by LD1, whereas the rest (3 %) are separated by LD2.
+
+```{r}
+# Then, predict the authorship of the 'test' poems
+lda.pred <- predict(lda.poems, newdata = scores.test)
+lda.pred
+```
+“Class” gives the predicted authorship for each of the 6 poems. We see that 3 poems are classified as
+Shakespeare poems, 3 poems are classified as Eliot poems, and 0 poems are classified as Blake poems.
+
+“Posterior” is a matrix whose columns are the classes (authors), rows are the individual poems, and values are the posterior probability that the corresponding poem belongs to an author.
+
+“x” contains the linear discriminants. In general, the values are calculated using the linear discriminant functions defined in lda.poems, and the predicted PC scores calculated in scores.poems (exercise 2a)
+
+**The posterior probabilities are stored in lda.pred$posterior. Display the values using round(lda.pred$posterior, digits = 2). What is the predicted authorship of the different poems?**
+
+```{r}
+posterior_pred <- round(lda.pred$posterior, digits = 2)
+posterior_pred
+```
+
+Predicted authorship: 
+
+- Poem 1: Shakespeare (84%) 
+- Poem 2: Shakespeare (61%) 
+- Poem 3: Eliot (62%) 
+- Poem 4: Eliot (63%)
+- Poem 5: Shakespeare (58%) 
+- Poem 6: Eliot (51%) 
+
+**Write up a so-called confusion matrix for the test classification with true author as rows and classified authors as columns. Use the confusion() function from the package mixlm. What poems from which author are most difficult to predict? Compute the apparent error rate (APER) and the accuracy.** 
+
+```{r}
+conf_mat <- confusion(lda.pred$class, scores.test$Author)
+```
+Apparent error rate = 1 - accuracy = 0.5 
+
+Accuracy = 3/6 = 0.5 
+
+**How would you think one can improve the LDA? By adding more ‘test’ data (more observations in poems.test) or more ‘training’ data (data that the LDA is fit on, i.e. poems)** 
+
+The LDA could be improved by adding more test data. The test data didn't include any poems by Blake, and the LDA was fit on a small sample size (22 poems). 
+The LDA is sensitive to the sample size, and the more data we have, the better the model will be. 
+
+
