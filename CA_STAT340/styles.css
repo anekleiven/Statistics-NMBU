@@ -1,0 +1,31 @@
+/* TOC text color */
+#TOC {
+  color: #black; 
+}
+
+/* TOC background color */
+#TOC {
+  background-color: #f0b7c0; 
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* TOC links */
+#TOC a {
+  color: #ee5a73; 
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* Active TOC item */
+#TOC .active {
+  background-color: #ee5a73 !important;
+  color: #ffffff  !important; 
+  
+/* Hover effect */
+#TOC a:hover {
+  background-color: #ee5a73 !important;
+  color: #ffffff !important;
+}
+
