@@ -40,6 +40,12 @@ This repository contains weekly exercises and materials for the STAT340 statisti
 - [exercises_week_9.Rmd](Week9/exercises_week_9.Rmd) - R Markdown exercises on classification methods
 - [exercises_week_9.html](Week9/exercises_week_9.html) - Compiled HTML output
 
+### 📑 CA_STAT340: Course Assignment
+- [CA_STAT340.Rmd](CA_STAT340/CA_STAT340.Rmd) - Course assignment R Markdown file
+- [CA_STAT340.html](CA_STAT340/CA_STAT340.html) - Compiled HTML output
+- [CA_STAT340.pdf](CA_STAT340/CA_STAT340.pdf) - PDF version of assignment
+- [Data/](CA_STAT340/Data/) - Folder containing datasets for the assignment
+
 ## 🛠️ Getting Started
 
 1. Clone this repository
