@@ -1,0 +1,134 @@
+---
+title: "Exercises STAT340 - GLM1"
+author: "Ane Kleiven"
+date: "2025-04-15"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+    number_sections: false 
+    theme: simplex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+# 1 Logistic regression 
+
+## Exercise 1 
+
+a) We will consider the Species variable of the iris.train set as a binary response variable in these exercises. You may use the Species variable directly as response in the models. R will recode “versicolor” as 0 and “virginica” as 1. Hence, we will model the probability of a plant being “virginica” as a function of the predictor variable(s). Fit a logistic regression model for Species using Petal.Length as predictor. Report the estimated coefficients of the linear predictor. Is the Petal.Length variable a significant predictor for the probability of “virginica” at 5% test level?
+
+### Load R libraries 
+
+```{r}
+library(BIAS.data)
+library(tidyverse) 
+library(ggplot2)
+library(mixlm)
+```
+
+### Load the iris data set 
+
+```{r}
+iris.train <- BIAS.data::iris.train
+```
+
+### Fit a logistic model 
+
+```{r}
+is.virginica <- glm(Species ~ Petal.Length, family = 'binomial', data = iris.train) 
+summary(is.virginica) 
+```
+The estimated coefficients of the linear predictor are: 
+- Intercept: -52.543 
+- Petal.Length: 10.802 
+
+η = -53.543 + 10.802*X 
+
+At 5% test level, the Petal.Length variable is a significant predictor for the probability of “virginica”. 
+The p-value is 0.00124. 
+
+```{r}
+anova(is.virginica,test='LR')
+```
+
+**Interpretation of the 'Analysis of Deviance Table':** 
+
+- NULL model: This is a model with no predictors—just an intercept. Its deviance is 110.904, which measures the lack of fit.
+
+- Petal.Length was added as a predictor. The deviance drops dramatically to 23.162, indicating a much better fit.
+
+- The drop in deviance is 87.742, with 1 degree of freedom (because you're adding 1 variable).
+
+- The p-value (< 2.2e-16) is extremely small, showing that this reduction in deviance is highly statistically significant.
+
+b) What is the estimated probability of a plant having Petal.Length equal to 5 to be a “virginica”?
+
+```{r}
+prob = predict(is.virginica, new = list(Petal.Length = 5), type = "response")
+
+cat('The estimated probability of a plant with Petal.Length = 5 being virginica is', prob)
+```
+In terms of classification this is now the posterior probability (estimated) for class “virginica” given the Petal.Length of 5. 
+
+We may write P (virginica|Petal.Length=5) = 0.81
+
+This also means that P (versicolor|Petal.Length=5) = 1−0.81 = 0.19, which is the estimated posterior probability of the plant with Petal.length of 5 being “versicolor”.
+mod2 <- glm(Species ~ Petal.Width, family = 'binomial', data = iris.train) 
+AIC(mod2)  
+
+
+c) Find the AIC for the model with Petal.Length as predictor, and fit models with the three other variables as sole predictors and find the AIC for each model. Which model is preferable from the AIC point of view?
+
+```{r}
+cat('The AIC for the model with Petal Length as predictor is', AIC(is.virginica))
+```
+
+```{r}
+mod2 <- glm(Species ~ Petal.Width, family = 'binomial', data = iris.train) 
+cat('The AIC for the model with Petal Width as predictor is', AIC(mod2))
+```
+
+```{r}
+mod3 <- glm(Species ~ Sepal.Width, family = 'binomial', data = iris.train) 
+cat('The AIC for the model with Sepal Width as predictor is', AIC(mod3))  
+```
+```{r}
+mod4 <- glm(Species ~ Sepal.Length, family = 'binomial', data = iris.train) 
+cat('The AIC for the model with Sepal Length as predictor is', AIC(mod4))
+```
+
+The model using Petal Length has the lowest AIC value, and is therefore the best fit based on this measurement. 
+
+e) Use a logistic model of your choice (perhaps the same predictors as you used in your best choice classifier of exercise c.) to estimate the posterior probabilities of “virginica” for the samples of the iris.test set. Allocate the samples to the most probable species class and use the confusion() function to evaluate the classification performance. You may use the code below to predict all test samples at once. Report the accuracy and APER of the classificator you used.
+
+```{r}
+post.prob <- predict(is.virginica, new = iris.test, type = 'response') 
+predicted <- factor(ifelse(post.prob > 0.5,"virginica","versicolor"))
+confusion(predicted, iris.test$Species)
+```
+The accuracy = 0.90 
+The APER (apparent error rate) = 1 - accuracy = 1 - 0.9 = 0.1 
+
+### Try a different model 
+
+```{r}
+is.virginica2 <- glm(Species ~ Petal.Length + Petal.Width, family = 'binomial', data = iris.train) 
+summary(is.virginica2)
+```
+```{r}
+AIC(is.virginica2)
+```
+
+```{r}
+post.prob2 <- predict(is.virginica2, new = iris.test, type = 'response') 
+predicted2 <- factor(ifelse(post.prob2 > 0.5, 'virginica', 'versicolor')) 
+confusion(iris.test$Species, predicted2)
+```
+
+The model using both Petal Length and Petal Width performs better than just using Petal Length. 
+The AIC score is lower, and the accuracy is higher (0.95). 
+This model only makes one wrong prediction, with an APER score of 1-0.95 = 0.05. 
+

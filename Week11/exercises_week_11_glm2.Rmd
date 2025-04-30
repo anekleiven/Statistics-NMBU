@@ -1,0 +1,276 @@
+---
+title: 'Exercises STAT340: GLM part two'
+author: "Ane Kleiven"
+date: "2025-04-30"
+output: 
+  html_document: 
+    number_sections: false
+    fig.caption: true  
+    toc: true 
+    toc_float: true
+    code_download: true
+    theme: yeti
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F) 
+```
+
+# Load R-packages and data 
+
+```{r}
+library(BIAS.data)
+library(nnet)
+library(carData)
+data(species)
+source("summaryMultinom.R")
+load("C:/Users/anekl/OneDrive - Norwegian University of Life Sciences/STAT340/exercises_week_11/taxonomy.Rdata")
+```
+
+# 1 Ex-1: Count data 
+
+*a. Redo the analysis from the lesson using the Biomass and pH variables as predictors for species counts in a Poisson regression model. Note that the default parametrization for GLM is “reference level” which here means that the effect of PH=High is set to zero. Find separate expressions for the estimated linear predictors η^j for each j= pH-levels = “low”,“medium”,“high”. Also find the estimated expected count for Biomass = 2 and pH = high.*
+
+```{r}
+mod1 <- glm(Species ~ Biomass + pH, data = species, family = poisson(log))
+summary(mod1)
+```
+NB: Parametrization set to 'reference level (pH = high is set to zero) 
+
+GLM in canonical form: 
+
+Yi ~ Poisson(mu i) 
+
+log(mu i) = eta i = B0 + B1*Biomass + B2*pH medium + B3* pH low 
+
+The linear predictor: 
+
+eta i = B0 + B1*Xi + B2x2i + B3x3i 
+
+where:
+- eta i is the linear predictor 
+- B1 is the effect of Biomass
+- B2 is the effect of pH medium
+- B3 is the effect of pH low
+- mu i = E(Yi) = exp(eta i) is the expected value of the response variable Yi
+
+*Find separate expressions for the estimated linear predictors η^j for each j= pH-levels = “low”,“medium”,“high”* 
+
+eta low = (3.85 - 1.14) - 0.128 * Biomass = 2.71 - 0.128 * Biomass 
+
+eta medium = (3.85 - 0.445) - 0.128 * Biomass = 3.40 - 0.128 * Biomass 
+
+eta high = (3.85 - 0) - 0.128 * Biomass 
+
+*Find the estimated expected count for Biomass = 2 and pH = high* 
+
+lambda = exp(3.85-0.128*2) = 36.4 
+
+*Performed in R* 
+
+```{r}
+new_data <- data.frame(Biomass = 2, pH = 'high')  # adjust pH level as needed
+response <- predict(mod1, newdata = new_data, type = "response", se.fit = TRUE)
+
+print(response)
+```
+
+*b) Fit the same model as in a. using the quasipoisson approach. Is there any evidence of overdisperion?*
+
+```{r}
+mod2 <- glm(Species ~ Biomass + pH, data = species, family = quasipoisson(log)) 
+sumfit <- summary(mod2)
+sumfit
+```
+From the summary output, we can see that the std error are somewhat bigger in the quasipoisson model than in the poisson model. The dispersion parameter is taken to be 1.11, meaning that the data is somewhat overdispersed.
+
+*Estimated over/underdispersion* 
+
+```{r}
+sumfit$dispersion
+```
+
+```{r}
+sqrt(sumfit$dispersion)
+```
+
+From the dispersion parameter, we can say that the variance is 1.11 times the mean, which indicates overdispersion. The square root of the dispersion parameter is 1.05, which is close to 1, indicating that the overdispersion is not very large. Not a big problem. 
+
+
+*c) Extend the model from a. by including an interaction between Biomass and pH. Test the significance of the interaction. Is there a significant difference between pH=“high” and pH=“medium” with regard to the effect of Biomass to the species count?*
+
+The model: 
+
+Eta i = B0 + B1X1 + B2X2 + B3X3 + B4(X1*X2) + B5(X1*X3) 
+
+Hypotheses: 
+- H0: B4 = B5 = 0 
+- H1: At least one of B4, B5 is not equal to 0 
+
+
+```{r}
+mod3 <- glm(Species ~ Biomass * pH, data = species, family = poisson(log))
+summary(mod3) 
+```
+The interaction between Biomass and pH low is significant, meaning that the effect of Biomass on species count is different for pH low compared to pH high.
+
+The interaction between Biomass and pH medium is not significant, meaning that the effect of Biomass on species count is not different for pH medium compared to pH high. 
+
+For further evaluation, we can look at the deviance tests: 
+
+```{r}
+anova(mod3, test = 'LR') 
+```
+The deviance test shows that the interaction model further lowers the deviance, and the p-value is significant. This means that the interaction between Biomass and pH is significant. 
+
+```{r}
+anova(mod1, mod3, test = 'LR')
+```
+
+**Plot the model** 
+
+```{r}
+library(ggplot2)
+ggplot(species, aes(x = Biomass, y = Species, color = pH)) +
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "poisson"), se = FALSE) +
+  labs(title = "Species count by Biomass and pH",
+       x = "Biomass",
+       y = "Species count") +
+  theme_minimal()
+```
+
+# 2 Ex-2: Multinomial data 
+
+*Fit a multinomial regression with Taxon as the multinomial categorical response variable and Sepal as predictor. Is the effect of Sepal on the probabilities of the various taxons significant at a 5% test level? Download the “summaryMultinom.R” file from the CANVAS-module and source it in R. This file contains code to summarize the multinomial regression model through the summaryMultinom() function which can be applied to the fitted multinomial model. The function will give you the estimated regression coefficients, the standard errors, the z-values and the p-values for each of the regression coefficients.*
+
+The model precits the Taxon based on the Sepal length. The model is fitted using the multinomial regression function from the nnet package. 
+
+```{r}
+mod4 <- multinom(formula = Taxon ~ Sepal, data = taxonomy, trace = FALSE)
+summaryMultinom(mod4)
+```
+The Deviance test gives a p-value much smaller than 0.05, and Sepal is found to influence the probability of taxons significantly. 
+
+*b) What are the estimated linear predictors η^j for each of the four taxa, j=1,2,3,4?* 
+
+The linear predictor is given by the formula: 
+
+eta i = B0 + B1X1 + B2X2 + B3X3
+
+where: 
+
+- eta i is the linear predictor
+- B0 is the intercept
+- B1 is the effect of Sepal for taxon 1 
+- B2 is the effect of Sepal for taxon 2
+- B3 is the effect of Sepal for taxon 3
+- B4 is the effect of Sepal for taxon 4
+
+Since we use reference level parametrization, the intercept is the linear predictor for the reference level (taxon 1). The other taxons are compared to taxon 1. 
+
+eta 1 (taxon 1) = 0 + 0 * Sepal = 0 
+
+eta 2 (taxon 2) = 1.49 - 0.59 * Sepal 
+
+eta 3 (taxon 3) = 2.87 - 1.15 * Sepal 
+
+eta 4 (taxon 4) = -48.0 + 13.71 * Sepal 
+
+
+*What is the most probable taxon according to this model for a plant with Sepal=3? (Hint: First insert Sepal=3 in the linear predictors you just found to obtain the actual value of this. Then use the expression for the probability of a outcome j:* 
+
+```{r, eval = F}
+prob j = exp(eta j) / sum (exp(eta j)) = exp(eta j) / exp(eta 1) + exp(eta 2) + exp(eta 3) + exp(eta 4) 
+```
+
+Calculate the etas for sepal = 3 
+
+```{r}
+eta1 <- 0 
+eta2 <- 1.49 - 0.59 * 3
+eta3 <- 2.87 - 1.15 * 3
+eta4 <- -48.0 + 13.71 * 3
+```
+
+Find the probabilities for each taxon: 
+
+```{r}
+# Taxon 1
+tax1 <- exp(eta1) / (exp(eta1) + exp(eta2) + exp(eta3) + exp(eta4)) 
+# Taxon 2
+tax2 <- exp(eta2) / (exp(eta1) + exp(eta2) + exp(eta3) + exp(eta4))
+# Taxon 3
+tax3 <- exp(eta3) / (exp(eta1) + exp(eta2) + exp(eta3) + exp(eta4))
+# Taxon 4
+tax4 <- exp(eta4) / (exp(eta1) + exp(eta2) + exp(eta3) + exp(eta4)) 
+
+# create a data frame to store the results 
+taxon_probs <- data.frame(
+  Taxon = c("Taxon 1", "Taxon 2", "Taxon 3", "Taxon 4"),
+  Probability = c(tax1, tax2, tax3, tax4)
+)
+
+taxon_probs
+  
+```
+
+The etas are the key inputs to calculate the actual probabilities for each taxon. The most probable taxon is the one with the highest probability. 
+
+*Create a Boxplot of Sepal from the Graph menu and choose to plot by groups identified by the taxon levels. Can you see why Sepal appears to be informative with regard to taxon?* 
+
+```{r}
+library(ggplot2) 
+ggplot(data = taxonomy) + 
+  geom_boxplot(aes(x = Taxon, y = Sepal, fill = Taxon))
+```
+
+We can see that taxon four has a much higher Sepal length than the other taxons. Taxon 1, 2 and 3 have similar Sepal lengths, but taxon 3 is the most probable for lower Sepal lengths. 
+
+*Use similar plots like in d. to identify other variables which are promising with regard to separating taxa I, II and III (Sepal is already a good variable to distinguish taxon IV from the others). Fit an extended model with the variables you have chosen.* 
+
+```{r}
+ggplot(data = taxonomy) + 
+  geom_boxplot(aes(x = Taxon, y = Leaf, fill = Taxon)) +
+  labs(title = "Leaf length by Taxon",
+       x = "Taxon",
+       y = "Leaf length") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(data = taxonomy) + 
+  geom_boxplot(aes(x = Taxon, y = Petiole, fill = Taxon)) +
+  labs(title = "Petiole length by Taxon",
+       x = "Taxon",
+       y = "Petiole length") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(data = taxonomy) + 
+  geom_boxplot(aes(x = Taxon, y = Petals, fill = Taxon)) +
+  labs(title = "Petal length by Taxon",
+       x = "Taxon",
+       y = "Petal length") +
+  theme_minimal()
+```
+
+By the plots above, it seems like the following parameters can be used to separate the taxons: 
+- Petiole length 
+- Leaf length 
+
+The model can be fitted using the multinomial regression function from the nnet package. 
+
+```{r}
+mod5 <- multinom(formula = Taxon ~ Sepal + Leaf + Petiole, data = taxonomy, trace = FALSE)
+summaryMultinom(mod5)
+```
+Leaf seems to distinguish taxon 3 from the others. 
+Petiole may separate taxa 1 and 2.  
+
+The model above is fitted using sepal, leaf and petiole as predictors. 
+
+We can see from the summary that the deviance is much lower than the simple model containing only sepal. The p-value is also much smaller than 0.05, indicating that the model is significant.  
+
