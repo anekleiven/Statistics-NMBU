@@ -28,17 +28,27 @@ This repository contains weekly exercises and materials for the STAT340 statisti
 - [exercises_week_6_PCA.Rmd](Week6/exercises_week_6_PCA.Rmd) - R Markdown exercises on PCA
 - [exercises_week_6_PCA.html](Week6/exercises_week_6_PCA.html) - Compiled HTML output
 
-### 📊 Week 7: Advanced Multivariate Analysis
-- [exercises_week_7.Rmd](Week7/exercises_week_7.Rmd) - R Markdown exercises on advanced multivariate methods
+### 📊 Week 7: PCR and PLSR
+- [exercises_pcr_plsr.Rmd](Week7/exercises_pcr_plsr.Rmd) - R Markdown exercises on advanced multivariate methods
 - [exercises_week_7.html](Week7/exercises_week_7.html) - Compiled HTML output
 
 ### 🧩 Week 8: Clustering
-- [exercises_week_8.Rmd](Week8/exercises_week_8.Rmd) - R Markdown exercises on clustering techniques
+- [exercises_week_8_clustering.Rmd](Week8/exercises_week_8_clustering.Rmd) - R Markdown exercises on clustering techniques
 - [exercises_week_8.html](Week8/exercises_week_8.html) - Compiled HTML output
 
 ### 🔍 Week 9: Classification
-- [exercises_week_9.Rmd](Week9/exercises_week_9.Rmd) - R Markdown exercises on classification methods
-- [exercises_week_9.html](Week9/exercises_week_9.html) - Compiled HTML output
+- [group_exercises_classification.Rmd](Week9/group_exercises_classification.Rmd) - R Markdown exercises on classification methods
+- [group_exercises_classification.html](Week9/group_exercises_classification.html) - Compiled HTML output
+- [individual_exercises_classification.Rmd](Week9/individual_exercises_classification.Rmd) - R Markdown exercises on classification methods
+- [individual_exercises_classification.html](Week9/individual_exercises_classification.html) - Compiled HTML output
+
+### 📊 Week 10: Generalized linear models 
+- [exercises_week10_glm.Rmd](Week10/exercises_week10_glm.Rmd) - R Markdown exercises on generalized linear models 
+- [exercises_week10_glm.html](Week10/exercises_week10_glm.html) - Compiled HTML output
+
+### 📊 Week 11: Generalized linear models part two (Poisson, Multinomial Regression) 
+- [exercises_week11_glm2.Rmd](Week10/exercises_week11_glm2.Rmd) - R Markdown exercises on generalized linear models
+- [exercises_week11_glm2.html](Week10/exercises_week11_glm2.html) - Compiled HTML output
 
 ### 📑 CA_STAT340: Course Assignment
 - [CA_STAT340.Rmd](CA_STAT340/CA_STAT340.Rmd) - Course assignment R Markdown file
